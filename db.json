@@ -1,0 +1,90 @@
+{
+  "company": {
+    "name": "MINESYNC Metallurgical",
+    "logoUrl": "uploads/1743631617095.png",
+    "supportEmail": "support@minesync.com",
+    "contactDetails": "+263-78-329-1237",
+    "plantGuidelines": "Our plant operates a primary Jaw Crusher that feeds Ball Mill 2. If Ball Mill 2 is down, the entire flotation circuit is halted. Boiler makers must clear structural frame cracks within 4 hours, and fitters must resolve pulley outages within 2 hours. Spares must always be kept above 2 units."
+  },
+  "assets": [
+    {
+      "id": "AST-101",
+      "name": "Ball Mill 2",
+      "location": "Milling Area",
+      "criticality": "High",
+      "serial": "BM-1024"
+    },
+    {
+      "id": "AST-102",
+      "name": "Jaw Crusher 1",
+      "location": "Primary Crushing",
+      "criticality": "High",
+      "serial": "JC-0899"
+    },
+    {
+      "id": "AST-103",
+      "name": "Flotation Cell 5",
+      "location": "Concentration Flank",
+      "criticality": "Medium",
+      "serial": "FC-0453"
+    },
+    {
+      "id": "AST-104",
+      "name": "Thickener Tank 3",
+      "location": "Dewatering Section",
+      "criticality": "Low",
+      "serial": "TK-0221"
+    }
+  ],
+  "inventory": [
+    {
+      "name": "Mill Liners",
+      "quantity": 5,
+      "cost": 1200
+    },
+    {
+      "name": "Crusher Jaws",
+      "quantity": 0,
+      "cost": 2500
+    },
+    {
+      "name": "Impeller Shafts",
+      "quantity": 2,
+      "cost": 450
+    },
+    {
+      "name": "Electric Contactors",
+      "quantity": 15,
+      "cost": 85
+    }
+  ],
+  "users": [],
+  "admins": [],
+  "management": [],
+  "workOrders": [],
+  "suggestions": {
+    "jobNames": [
+      "Ball Mill 2 vibrating heavily",
+      "Replace worn liner plates on Ball Mill 2",
+      "Calibrate Flotation Cell 5 Level Transmitters",
+      "Repair Jaw Crusher 1 conveyor pulley",
+      "Electrical contactor replacement in Mill MCC"
+    ],
+    "serialNumbers": [
+      "BM-1024",
+      "JC-0899",
+      "FC-0453",
+      "TK-0221"
+    ],
+    "whatToDos": [
+      "Perform vibration analysis, isolate power, inspect main gearbox, check gear backlash, and tighten holding bolts.",
+      "Shut down plant feed, vent mill, install crane hooks, lift old liner plates out, place new steel manganese liners, and torque bolts to 450Nm.",
+      "Isolate water feed, clean froth build-up on probe sensor, adjust float mechanism, and recalibrate PLC 4-20mA telemetry.",
+      "Perform LOTO (Lock-Out Tag-Out), slacken belt, remove worn pulley, install new heavy-duty pulley, align shafts, and tension belt.",
+      "Turn off local disconnect, discharge residual capacitance, slide out contactor block, mount new 110V contactor, verify auxiliary contacts."
+    ]
+  },
+  "shortages": [],
+  "chats": [],
+  "emails": []
+}
