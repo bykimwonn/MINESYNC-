@@ -157,9 +157,9 @@
     ];
 
     const recoveredUsers = [
-      { id: "U-1", username: "artisan_bongani", name: "Bongani", role: "Artisan", trade: "Boiler Maker", password: "temp123", changedPassword: false, email: "bongani@minesync.com", whatsapp: "+263783291237", online: false, completedCount: 1, assignedCount: 1, slaAdherence: 95, dob: "", address: "", emergencyName: "", emergencyPhone: "" },
-      { id: "U-2", username: "artisan_john", name: "John", role: "Artisan", trade: "Fitter", password: "temp123", changedPassword: false, email: "john@minesync.com", whatsapp: "+263771122334", online: false, completedCount: 1, assignedCount: 1, slaAdherence: 98, dob: "", address: "", emergencyName: "", emergencyPhone: "" },
-      { id: "U-3", username: "foreman_tau", name: "foreman_tau", role: "Foreman", trade: "Supervisor", password: "foreman123", changedPassword: true, email: "tau@minesync.com", whatsapp: "+263774455667", online: false, completedCount: 0, assignedCount: 0, slaAdherence: 100, dob: "", address: "", emergencyName: "", emergencyPhone: "" }
+      { id: "U-1", username: "artisan_bongani", name: "Bongani", role: "Artisan", trade: "Boiler Maker", password: "temp123", changedPassword: false, email: "bongani@minesync.com", whatsapp: "+263783291237", online: false, completedCount: 1, assignedCount: 1, slaAdherence: 95, dob: "", address: "", emergencyName: "", emergencyPhone: "", profileImg: "" },
+      { id: "U-2", username: "artisan_john", name: "John", role: "Artisan", trade: "Fitter", password: "temp123", changedPassword: false, email: "john@minesync.com", whatsapp: "+263771122334", online: false, completedCount: 1, assignedCount: 1, slaAdherence: 98, dob: "", address: "", emergencyName: "", emergencyPhone: "", profileImg: "" },
+      { id: "U-3", username: "foreman_tau", name: "foreman_tau", role: "Foreman", trade: "Supervisor", password: "foreman123", changedPassword: true, email: "tau@minesync.com", whatsapp: "+263774455667", online: false, completedCount: 0, assignedCount: 0, slaAdherence: 100, dob: "", address: "", emergencyName: "", emergencyPhone: "", profileImg: "" }
     ];
 
     const recoveredManagement = [
@@ -227,15 +227,13 @@
     function App() {
       // --- DYNAMIC DEVICE REMEMBRANCE AND SECURITY FLOWS ---
       const [showDeviceSetup, setShowDeviceSetup] = useState(() => {
-        // If device has already configured or recovered a company, skip setup prompt forever!
         return localStorage.getItem("msync_v19_device_registered") === null;
       });
 
-      const [setupStateStep, setSetupStateStep] = useState("NEW_OR_RETURNING"); // NEW_OR_RETURNING | NEW_COMPANY_FORM | RESTORE_BACKUP | NOT_REGISTERED_WARN
+      const [setupStateStep, setSetupStateStep] = useState("NEW_OR_RETURNING"); 
       const [typedRecoveryCompany, setTypedRecoveryCompany] = useState("");
       const [selectedLoginCompany, setSelectedLoginCompany] = useState("");
       
-      // Known companies list for Autocomplete/Suggestions
       const [knownCompanies, setKnownCompanies] = useState(() => {
         return JSON.parse(localStorage.getItem("msync_v19_known_companies")) || ["MINESYNC Metallurgical", "Bongani Metals Ltd", "Outpit Gold Refinery", "Thickener Dewatering Corp"];
       });
@@ -297,7 +295,7 @@
       const [sessionPath, setSessionPath] = useState("LANDING"); 
       const [plantSubRole, setPlantSubRole] = useState(""); 
 
-      // UI Inputs & Filters
+      // UI Inputs, Filters & Printable Modal
       const [searchQuery, setSearchQuery] = useState("");
       const [notification, setNotification] = useState(null);
       const [errorMsg, setErrorMsg] = useState("");
@@ -311,14 +309,14 @@
       const [recoveredAccountEmail, setRecoveredAccountEmail] = useState("");
       const [newForgotPassword, setNewForgotPassword] = useState("");
 
-      // Operations Engineer Reset Bypass
+      // Operations Engineer Reset Bypass modals
       const [showOpsBypassModal, setShowOpsBypassModal] = useState(false);
       const [opsUsernameInput, setOpsUsernameInput] = useState("");
       const [opsPasswordInput, setOpsPasswordInput] = useState("");
       const [newBypassAdminUser, setNewBypassAdminUser] = useState("");
       const [newBypassAdminPass, setNewBypassAdminPass] = useState("");
 
-      // Suggestions
+      // Suggestions list
       const [activeJobSuggestions, setActiveJobSuggestions] = useState([]);
       const [activeSerialSuggestions, setActiveSerialSuggestions] = useState([]);
       const [activeInstructionSuggestions, setActiveInstructionSuggestions] = useState([]);
@@ -330,7 +328,7 @@
       // Fallback state for broken logo images
       const [logoImageError, setLogoImageError] = useState(false);
 
-      // Timer for screen loader (Wakes up only after device setup completes)
+      // Timer for screen loader
       useEffect(() => {
         if (showDeviceSetup) return;
 
@@ -432,12 +430,10 @@
         setCompanyName(targetName);
         setCompanyLogoUrl("1743631617095.png");
 
-        // Add to autocompleted list if new
         if (!knownCompanies.includes(targetName)) {
           setKnownCompanies([...knownCompanies, targetName]);
         }
 
-        // Lock in device remembrance!
         localStorage.setItem("msync_v19_device_registered", "true");
         localStorage.setItem("msync_v19_installed", "true");
         setShowDeviceSetup(false);
@@ -473,7 +469,6 @@
       const handleSaveUserProfile = (e) => {
         e.preventDefault();
         
-        // Update user state array
         const updatedUsers = users.map(u => {
           if (u.id === currentUser.id) {
             return {
@@ -506,7 +501,6 @@
       const handleOwnerLogin = (e) => {
         e.preventDefault();
         
-        // Dynamic Company Name Validation
         if (selectedLoginCompany.trim() !== companyName) {
           setErrorMsg(`Validation Failed: Unrecognized Organization Name "${selectedLoginCompany}".`);
           return;
@@ -532,7 +526,7 @@
       const handleCreateAdmin = (e) => {
         e.preventDefault();
         if (!newAdminName || !newAdminEmail || !newAdminUser || !newAdminPass) {
-          alert("Mandatory: Please input all Admin details.");
+          alert("All fields are mandatory.");
           return;
         }
         const updatedAdmins = [...admins, { username: newAdminUser, name: newAdminName, email: newAdminEmail, password: newAdminPass }];
@@ -674,10 +668,483 @@
         }
       };
 
-      // --- WORK CARD CREATION ---
-      const handleCreateWorkOrderSubmit = (e) => {
+      // Password recovery request (Standard email code send)
+      const handleTriggerForgotPassword = (e) => {
         e.preventDefault();
-        handleCreateWorkOrder(e);
+        if (!forgotPasswordEmail.trim()) return;
+
+        fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: forgotPasswordEmail.trim() })
+        })
+        .then(res => {
+          if (!res.ok) throw new Error("Email not found");
+          return res.json();
+        })
+        .then(data => {
+          setRecoveryGeneratedCode(data.recoveryCode.toString());
+          setRecoveredAccountEmail(forgotPasswordEmail.trim());
+          setRecoveryState("SENT");
+          setForgotPasswordEmail("");
+          triggerNotification("Security Code Dispatched", `Sent safely to ${forgotPasswordEmail.trim()}. Check your email app!`, "System");
+        })
+        .catch(e => {
+          alert("Error: That email address is not registered in our MINESYNC Roster.");
+        });
+      };
+
+      const handleConfirmRecoveryCode = (e) => {
+        e.preventDefault();
+        if (recoveryCodeInput.trim() === generatedCode) {
+          setRecoveryState("CONFIRMED");
+          setErrorMsg("");
+        } else {
+          setErrorMsg("Invalid recovery code. Please check your email inbox carefully.");
+        }
+      };
+
+      const handleCommitRecoveryPassword = (e) => {
+        e.preventDefault();
+        if (newForgotPassword.length < 5) {
+          alert("Password must be at least 5 characters long.");
+          return;
+        }
+
+        fetch('/api/auth/reset-password-confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: recoveredAccountEmail, newPassword: newForgotPassword })
+        })
+        .then(res => res.json())
+        .then(() => {
+          setUsers(prev => prev.map(u => {
+            if (u.email.toLowerCase() === recoveredAccountEmail.toLowerCase()) {
+              return { ...u, password: newForgotPassword, changedPassword: true };
+            }
+            return u;
+          }));
+
+          setAdmins(prev => prev.map(a => {
+            if (a.email.toLowerCase() === recoveredAccountEmail.toLowerCase()) {
+              return { ...a, password: newForgotPassword };
+            }
+            return a;
+          }));
+
+          setRecoveryState("NONE");
+          setRecoveryCodeInput("");
+          setNewForgotPassword("");
+          setRecoveredAccountEmail("");
+          alert("🔒 Password changed successfully! You can now log into your specialized section.");
+        });
+      };
+
+      // --- BYPASS RESET ADMIN PASSWORD VIA OPERATIONS ENGINEER ---
+      const handleOpsAdminBypass = (e) => {
+        e.preventDefault();
+        if (!opsUsernameInput || !opsPasswordInput || !newBypassAdminUser || !newBypassAdminPass) {
+          alert("All bypass fields are mandatory.");
+          return;
+        }
+
+        fetch('/api/auth/ops-recovery-reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            opsUsername: opsUsernameInput.trim(),
+            opsPassword: opsPasswordInput,
+            newAdminUser: newBypassAdminUser.trim(),
+            newAdminPass: newBypassAdminPass
+          })
+        })
+        .then(res => {
+          if (!res.ok) throw new Error("Authorization denied");
+          return res.json();
+        })
+        .then(data => {
+          setAdmins([{
+            username: newBypassAdminUser.trim(),
+            password: newBypassAdminPass,
+            name: "Shift Admin",
+            email: "admin@minesync.com"
+          }]);
+          
+          setShowOpsBypassModal(false);
+          setOpsUsernameInput("");
+          setOpsPasswordInput("");
+          setNewBypassAdminUser("");
+          setNewBypassAdminPass("");
+          
+          alert("🟢 Operations Engineer Clearance Approved! The Administrator credentials have been successfully reset. You can now log into the Admin portal.");
+        })
+        .catch(err => {
+          alert("Bypass Denied: Credentials do not match the registered 'Operations Engineer'. Please configure their profile first.");
+        });
+      };
+
+      // Save SMTP Mail Settings in DB
+      const handleSaveSMTPSettings = (e) => {
+        e.preventDefault();
+        fetch('/api/company', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            smtp: {
+              host: smtpHost,
+              port: smtpPort,
+              user: smtpUser,
+              pass: smtpPass,
+              from: smtpFrom
+            }
+          })
+        })
+        .then(res => res.json())
+        .then(() => {
+          triggerNotification("SMTP Settings Updated", "Secure Mail Server values successfully committed to backend server.", "System");
+          alert("✉️ SMTP Configuration Saved! If you inputted your actual Gmail details, MINESYNC will now send real recovery emails!");
+        });
+      };
+
+      // --- FOREMAN ACTIONS ---
+      const [jobName, setJobName] = useState("");
+      const [jobSerial, setJobSerial] = useState("");
+      const [jobWhatToDo, setJobWhatToDo] = useState("");
+      const [jobAssetId, setJobAssetId] = useState("");
+      const [jobDays, setJobDays] = useState("1");
+      const [jobPeopleCount, setJobPeopleCount] = useState("1");
+      const [jobArtisanId, setJobArtisanId] = useState("");
+      const [jobPartRequired, setJobPartRequired] = useState("");
+
+      const handleJobNameChange = (val) => {
+        setJobName(val);
+        if (val.trim().length > 1) {
+          const filtered = suggestions.jobNames.filter(item => item.toLowerCase().includes(val.toLowerCase()));
+          setActiveJobSuggestions(filtered);
+        } else {
+          setActiveJobSuggestions([]);
+        }
+      };
+
+      const handleSerialChange = (val) => {
+        setJobSerial(val);
+        if (val.trim().length > 1) {
+          const filtered = suggestions.serialNumbers.filter(item => item.toLowerCase().includes(val.toLowerCase()));
+          setActiveSerialSuggestions(filtered);
+        } else {
+          setActiveSerialSuggestions([]);
+        }
+      };
+
+      const handleInstructionChange = (val) => {
+        setJobWhatToDo(val);
+        if (val.trim().length > 1) {
+          const filtered = suggestions.whatToDos.filter(item => item.toLowerCase().includes(val.toLowerCase()));
+          setActiveInstructionSuggestions(filtered);
+        } else {
+          setActiveInstructionSuggestions([]);
+        }
+      };
+
+      const handleSelectJobSuggestion = (text) => {
+        setJobName(text);
+        setActiveJobSuggestions([]);
+        if (text.includes("Ball Mill")) {
+          setJobSerial("BM-1024");
+          setJobAssetId("AST-101");
+          setJobWhatToDo(suggestions.whatToDos[1]);
+        } else if (text.includes("Conveyor") || text.includes("Crusher")) {
+          setJobSerial("JC-0899");
+          setJobAssetId("AST-102");
+          setJobWhatToDo(suggestions.whatToDos[3]);
+        } else if (text.includes("Flotation") || text.includes("Level")) {
+          setJobSerial("FC-0453");
+          setJobAssetId("AST-103");
+          setJobWhatToDo(suggestions.whatToDos[2]);
+        } else if (text.includes("MCC") || text.includes("contactor")) {
+          setJobSerial("TK-0221");
+          setJobAssetId("AST-104");
+          setJobWhatToDo(suggestions.whatToDos[4]);
+        }
+      };
+
+      const handleCreateWorkOrder = (e) => {
+        e.preventDefault();
+        if (!jobName || !jobAssetId || !jobArtisanId) {
+          alert("All mandatory fields must be specified.");
+          return;
+        }
+
+        const selectedAsset = assets.find(a => a.id === jobAssetId);
+        const selectedArtisan = users.find(u => u.id === jobArtisanId);
+        const targetPart = inventory.find(p => p.name === jobPartRequired);
+
+        let status = "Pending";
+        let isShortage = false;
+
+        if (jobPartRequired && targetPart) {
+          if (targetPart.quantity <= 0) {
+            status = "Awaiting Spares";
+            isShortage = true;
+          }
+        }
+
+        const newWO = {
+          id: `WO-${Math.floor(1000 + Math.random() * 9000)}`,
+          title: jobName,
+          serial: jobSerial || (selectedAsset ? selectedAsset.serial : ""),
+          description: jobWhatToDo || "Perform standard structural visual check.",
+          assetId: jobAssetId,
+          assetName: selectedAsset ? selectedAsset.name : "Asset",
+          criticality: selectedAsset ? selectedAsset.criticality : "Low",
+          priority: (selectedAsset && selectedAsset.criticality === "High") ? "Urgent" : "Medium",
+          status: status,
+          assignedToId: selectedArtisan ? selectedArtisan.id : "",
+          assignedToName: selectedArtisan ? selectedArtisan.name : "Artisan",
+          durationExpected: jobDays,
+          peopleCount: jobPeopleCount,
+          partsRequired: jobPartRequired || "None",
+          partsShortageFlag: isShortage,
+          createdAt: new Date().toLocaleString(),
+          completedAt: null,
+          progress: 0,
+          progressNotes: "",
+          artisanNotes: "",
+          authorizedBy: "", 
+          engineeringDirective: ""
+        };
+
+        const updatedWOs = [newWO, ...workOrders];
+        setWorkOrders(updatedWOs);
+
+        if (selectedArtisan) {
+          setUsers(prev => prev.map(u => {
+            if (u.id === selectedArtisan.id) {
+              return { ...u, assignedCount: (u.assignedCount || 0) + 1 };
+            }
+            return u;
+          }));
+        }
+
+        // Learn input history
+        const updatedSuggestions = { ...suggestions };
+        if (!updatedSuggestions.jobNames.includes(jobName)) updatedSuggestions.jobNames.push(jobName);
+        if (jobSerial && !updatedSuggestions.serialNumbers.includes(jobSerial)) updatedSuggestions.serialNumbers.push(jobSerial);
+        if (jobWhatToDo && !updatedSuggestions.whatToDos.includes(jobWhatToDo)) updatedSuggestions.whatToDos.push(jobWhatToDo);
+        setSuggestions(updatedSuggestions);
+
+        if (selectedArtisan && selectedArtisan.whatsapp && selectedArtisan.email) {
+          triggerNotification(
+            `Dispatch Alert sent to ${selectedArtisan.name}`,
+            `📲 WhatsApp text to ${selectedArtisan.whatsapp} & 📧 Email dispatch cleared.`,
+            "WhatsApp"
+          );
+        }
+
+        setJobName("");
+        setJobSerial("");
+        setJobWhatToDo("");
+        setJobAssetId("");
+        setJobDays("1");
+        setJobPeopleCount("1");
+        setJobArtisanId("");
+        setJobPartRequired("");
+      };
+
+      // --- ADVANCED MANAGEMENT ACTIONS ---
+      const [mgmtDirectiveInput, setMgmtDirectiveInput] = useState("");
+      const [mgmtBudgetInput, setMgmtBudgetInput] = useState("");
+      const [activeSelectedWOId, setActiveSelectedWOId] = useState("");
+      
+      const handleAddManagementDirective = (woId) => {
+        if (!mgmtDirectiveInput.trim()) return;
+        setWorkOrders(prev => prev.map(wo => {
+          if (wo.id === woId) {
+            return { 
+              ...wo, 
+              engineeringDirective: mgmtDirectiveInput,
+              authorizedBy: currentUser.username
+            };
+          }
+          return wo;
+        }));
+        setMgmtDirectiveInput("");
+        triggerNotification("Directive Dispatched", `Safety / Engineering guidelines registered on Work Order ${woId}.`, "System");
+      };
+
+      const handleAddBudgetApprove = (woId) => {
+        if (!mgmtBudgetInput.trim()) return;
+        setWorkOrders(prev => prev.map(wo => {
+          if (wo.id === woId) {
+            return { 
+              ...wo, 
+              repairCost: mgmtBudgetInput,
+              authorizedBy: currentUser.username
+            };
+          }
+          return wo;
+        }));
+        setMgmtBudgetInput("");
+        triggerNotification("Budget Clearance Issued", `Repair cost approved for Work Order ${woId}.`, "System");
+      };
+
+      // Direct restocking of inventory
+      const [refillPartName, setRefillPartName] = useState("");
+      const [refillQuantity, setRefillQuantity] = useState(10);
+      const handleRestockParts = (partName, qty) => {
+        setInventory(prev => prev.map(p => p.name === partName ? { ...p, quantity: p.quantity + parseInt(qty) } : p));
+        triggerNotification("Stores Replenished", `${qty} units added to ${partName} stockpile.`, "System");
+      };
+
+      // --- MOCK INTEGRATED "AI" ADAPTIVE TEXT ENGINE ---
+      const generateAIReportSummary = () => {
+        const activeOrdersCount = workOrders.filter(w => w.status !== "Completed").length;
+        const completeOrdersCount = workOrders.filter(w => w.status === "Completed").length;
+        const awaitingSparesCount = workOrders.filter(w => w.status === "Awaiting Spares").length;
+        
+        let report = `AI PLANT OPERATIONAL REPORT - SYNTHESIS\n`;
+        report += `===============================================\n\n`;
+        report += `Live Metrics Analyzed:\n`;
+        report += `- Outstanding Plant Breakdowns: ${activeOrdersCount} Active Outages\n`;
+        report += `- Completed Shift Tickets: ${completeOrdersCount} Resolved Repairs\n`;
+        report += `- Material-Blocked Repairs (Red Flags): ${awaitingSparesCount} Awaiting Spares\n`;
+        report += `- Calculated MTTR Speed: ${getMTTR()}\n\n`;
+
+        report += `Matching live metrics against written Management Directives...\n`;
+        report += `\"${plantGuidelines}\"\n\n`;
+
+        // Interactive matching algorithms
+        let vulnerabilities = [];
+        let performanceAdherence = [];
+
+        if (plantGuidelines.toLowerCase().includes("ball mill 2")) {
+          const millOutages = workOrders.filter(w => w.assetId === "AST-101" && w.status !== "Completed");
+          if (millOutages.length > 0) {
+            vulnerabilities.push(`CRITICAL DANGER: Your guidelines specify that 'If Ball Mill 2 is down, the entire flotation circuit is halted'. Currently, there are ${millOutages.length} active breakdowns on Ball Mill 2. Circuit is stalled.`);
+          } else {
+            vulnerabilities.push(`Milling Circuit Status: Ball Mill 2 is running fine. Flotation circuit risk is currently nominal.`);
+          }
+        }
+
+        if (plantGuidelines.toLowerCase().includes("boiler maker") || plantGuidelines.toLowerCase().includes("hours")) {
+          const boilerMakers = users.filter(u => u.trade === "Boiler Maker");
+          boilerMakers.forEach(bm => {
+            const adRate = bm.slaAdherence || 100;
+            if (adRate < 90) {
+              performanceAdherence.push(`SLA Alert: Boiler Maker ${bm.name} has an SLA speed of ${adRate}%, failing your guideline target of 'clearing structural frame cracks within 4 hours'.`);
+            }
+          });
+        }
+
+        if (plantGuidelines.toLowerCase().includes("spares") || plantGuidelines.toLowerCase().includes("units")) {
+          const criticalParts = inventory.filter(p => p.quantity <= 2);
+          criticalParts.forEach(p => {
+            vulnerabilities.push(`Stock warning: '${p.name}' quantity is ${p.quantity} units, failing your plant guideline rule of 'spares must always be kept above 2 units'.`);
+          });
+        }
+
+        report += `AI Diagnostic Findings:\n`;
+        if (vulnerabilities.length === 0 && performanceAdherence.length === 0) {
+          report += `🟢 Plant operations are fully optimized. No structural, mechanical, or stockpile rules violated. Standard MTTR is within guidelines.`;
+        } else {
+          vulnerabilities.forEach(v => { report += `🔴 ${v}\n`; });
+          performanceAdherence.forEach(p => { report += `⚠️ ${p}\n`; });
+        }
+
+        return report;
+      };
+
+      // --- ARTISAN ACTIONS ---
+      const [artisanNotesInput, setArtisanNotesInput] = useState("");
+      const [artisanProgressVal, setArtisanProgressVal] = useState(0);
+      const [partComplaintInput, setPartComplaintInput] = useState("");
+
+      const handleApproveJob = (woId) => {
+        setWorkOrders(prev => prev.map(wo => {
+          if (wo.id === woId) {
+            const nextStatus = wo.partsShortageFlag ? "Awaiting Spares" : "In-Progress";
+            return { ...wo, status: nextStatus, progress: 10 };
+          }
+          return wo;
+        }));
+        triggerNotification("Operation Approved", "Repair state toggled to active workflow.", "System");
+      };
+
+      const handleUpdateProgress = (woId, percent, notes) => {
+        setWorkOrders(prev => prev.map(wo => {
+          if (wo.id === woId) {
+            return { ...wo, progress: parseInt(percent), progressNotes: notes };
+          }
+          return wo;
+        }));
+      };
+
+      const handleCompleteJob = (woId, finalNotes) => {
+        setWorkOrders(prev => prev.map(wo => {
+          if (wo.id === woId) {
+            if (wo.partsRequired !== "None") {
+              setInventory(inv => inv.map(p => {
+                if (p.name === wo.partsRequired && p.quantity > 0) {
+                  return { ...p, quantity: p.quantity - 1 };
+                }
+                return p;
+              }));
+            }
+            
+            setUsers(uList => uList.map(u => {
+              if (u.id === wo.assignedToId) {
+                const finished = (u.completedCount || 0) + 1;
+                const adRate = Math.min(100, Math.floor(80 + (Math.random() * 20)));
+                return { ...u, completedCount: finished, slaAdherence: adRate };
+              }
+              return u;
+            }));
+
+            return { 
+              ...wo, 
+              status: "Completed", 
+              progress: 100, 
+              completedAt: new Date().toLocaleString(),
+              artisanNotes: finalNotes
+            };
+          }
+          return wo;
+        }));
+        setArtisanNotesInput("");
+        triggerNotification("Outage SLA Resolved ✔️", "Performance logs registered. Ticket cleared.", "System");
+      };
+
+      const handleReportShortage = (e) => {
+        e.preventDefault();
+        if (!partComplaintInput.trim()) return;
+
+        const existing = shortages.find(s => s.item.toLowerCase() === partComplaintInput.trim().toLowerCase());
+        if (existing) {
+          setShortages(prev => prev.map(s => s.id === existing.id ? { ...s, count: s.count + 1, status: "Active" } : s));
+        } else {
+          setShortages(prev => [...prev, { id: `S-${Date.now()}`, item: partComplaintInput.trim(), count: 1, status: "Active" }]);
+        }
+
+        triggerNotification("Stock shortage registered", `Logged shortage for '${partComplaintInput}' in system.`, "System");
+        setPartComplaintInput("");
+      };
+
+      const handleResolveShortage = (shortageId, itemName) => {
+        setShortages(prev => prev.filter(s => s.id !== shortageId));
+        setInventory(prev => prev.map(p => {
+          if (p.name.toLowerCase().includes(itemName.toLowerCase()) || itemName.toLowerCase().includes(p.name.toLowerCase())) {
+            return { ...p, quantity: p.quantity + 10 };
+          }
+          return p;
+        }));
+        triggerNotification("Stock Replenished", `${itemName} stock restored. Warnings removed.`, "System");
+      };
+
+      // Handle logo image load error by toggling fallback state
+      const handleLogoLoadError = () => {
+        if (!logoImageError) {
+          setLogoImageError(true);
+        }
       };
 
       return (
@@ -739,7 +1206,7 @@
                             <div 
                               key={idx} 
                               onClick={() => { setTypedRecoveryCompany(c); setCompanySuggestions([]); }}
-                              class="p-2 hover:bg-slate-800 cursor-pointer text-slate-300"
+                              class="p-2 hover:bg-slate-800 cursor-pointer text-slate-300 animate-pulse"
                             >
                               🏢 {c}
                             </div>
@@ -803,7 +1270,7 @@
                         Use Demo Key
                       </button>
                     </div>
-                    <p class="text-[10px] text-slate-500">Cloud Recovery key: <code>BONGANI_METAL_SYNC</code></p>
+                    <p class="text-[10px] text-slate-500 font-bold">Cloud Recovery key: <code>BONGANI_METAL_SYNC</code></p>
                   </form>
                 )}
 
@@ -812,7 +1279,6 @@
                   <div class="flex justify-center gap-4">
                     <button 
                       onClick={() => {
-                        // Confirm they are in DB, let them proceed directly to login screen!
                         localStorage.setItem("msync_v19_device_registered", "true");
                         localStorage.setItem("msync_v19_installed", "true");
                         setShowDeviceSetup(false);
@@ -847,7 +1313,7 @@
                 <div class="absolute inset-0 spin-gear border-4 border-dashed border-brand-orange/40 rounded-full"></div>
                 <div class="absolute w-32 h-32 spin-gear border-4 border-dashed border-amber-500/10 rounded-full" style={{ animationDirection: 'reverse', animationDuration: '6s' }}></div>
                 
-                {/* Logo Image with SVG fallback inside loading gear */}
+                {/* Logo with SVG fallback */}
                 <div class="absolute z-10 w-28 h-28 bg-white rounded-2xl border-2 border-brand-steelBorder flex items-center justify-center shadow-2xl p-2.5">
                   {!logoImageError ? (
                     <img 
@@ -881,7 +1347,7 @@
             </div>
           )}
 
-          {/* PERSISTENT NOTIFICATION ALERT BAR: PROFILE INCOMPLETE FLAG */}
+          {/* PULSING INCOMPLETE PROFILE BANNER */}
           {currentUser && isProfileIncomplete() && (
             <div class="no-print bg-gradient-to-r from-brand-orange to-amber-500 px-6 py-2.5 text-center text-xs font-mono text-white font-bold animate-pulse flex justify-between items-center gap-4">
               <span>⚠️ PROFILE INCOMPLETE FLAG: Please configure your profile details (DOB, House Address, and Emergency Contacts) in Settings to clear this shift flag.</span>
@@ -965,7 +1431,7 @@
                   </div>
                 </div>
                 
-                {/* Profile Picture thumbnail with fallback */}
+                {/* Profile Picture thumbnail */}
                 <div class="w-10 h-10 rounded-full border border-brand-steelBorder bg-slate-800 flex items-center justify-center overflow-hidden">
                   {currentUser.profileImg ? (
                     <img src={currentUser.profileImg} alt="Pic" class="w-full h-full object-cover" />
@@ -1004,10 +1470,10 @@
                         {/* WRONG COMPANY ERROR WARNING */}
                         {errorMsg && <div class="bg-red-950 border border-red-700 text-red-200 text-xs p-3 rounded max-w-md mx-auto font-mono text-left">{errorMsg}</div>}
 
-                        {/* COMPANY SELECTION FIELD ON SIGN-IN (Bypass Wrong Company block!) */}
+                        {/* COMPANY SELECTION FIELD ON SIGN-IN (Spelling Validation active) */}
                         <div class="max-w-md mx-auto p-4 bg-slate-900/40 border border-brand-steelBorder rounded-xl text-left space-y-3 font-mono text-xs">
                           <label class="block text-[10px] text-brand-orange uppercase font-bold">1. Establish Target Roster Company</label>
-                          <p class="text-[10px] text-brand-steelText leading-relaxed">Type or search your metallurgical company name below. Spelled name must match configuration database.</p>
+                          <p class="text-[10px] text-brand-steelText leading-relaxed">Type your company name. Autocomplete will suggestions matching directories.</p>
                           <div class="relative">
                             <input 
                               type="text"
@@ -1113,9 +1579,9 @@
                           <button 
                             onClick={() => {
                               if (!selectedLoginCompany.trim()) {
-                                alert("Please establish Target Company above first!");
-                                return;
-                              }
+                                  alert("Please establish Target Company above first!");
+                                  return;
+                                }
                               if (admins.length === 0) {
                                 alert("Access Locked: System handover must be executed first.");
                                 return;
@@ -1388,7 +1854,7 @@
                           </div>
                         ) : (
                           <div>
-                            <label class="block text-xs font-mono text-brand-steelText uppercase mb-1">Operational ID / Username</label>
+                            <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Operational ID / Username</label>
                             <input 
                               type="text" 
                               placeholder="e.g. foreman_tau" 
@@ -1505,9 +1971,9 @@
 
             {/* SECURE DASHBOARDS (IF LOGGED IN) */}
             {currentUser && (
-              <div class="space-y-6">
+              <div class="space-y-6 font-sans">
                 
-                {/* FIRST TIME PROFILE CONFIRMATION FOR ARTISAN & FOREMAN */}
+                {/* FIRST TIME PROFILE CONFIRMATION */}
                 {(currentUser.role === "Artisan" || currentUser.role === "Foreman") && !currentUser.changedPassword ? (
                   <div class="max-w-md mx-auto bg-brand-cardBg border-2 border-brand-orange rounded-xl p-8 shadow-2xl">
                     <div class="text-center mb-6">
@@ -1690,7 +2156,7 @@
                               />
                             </div>
                             <div>
-                              <label class="block text-xs font-mono text-brand-steelText uppercase mb-1">System Username</label>
+                              <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">System Username</label>
                               <input 
                                 type="text" 
                                 required
@@ -1759,7 +2225,7 @@
                           <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl">
                             <h3 class="text-md font-bold uppercase text-brand-orange brand-font mb-4 flex items-center justify-between">
                               <span>🛡️ Active Staff Database Rows</span>
-                              <span class="text-xs bg-slate-900 border border-brand-steelBorder text-brand-steelText px-2 py-0.5 rounded font-mono font-bold">
+                              <span class="text-xs bg-slate-900 border border-brand-steelBorder text-brand-steelText px-2 py-0.5 rounded font-mono">
                                 Security Shield Active
                               </span>
                             </h3>
@@ -1902,7 +2368,7 @@
                                 class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-1.5 text-white"
                               />
                             </div>
-                            <button type="submit" class="w-full py-2 bg-brand-orange hover:bg-brand-orangeHover text-white text-xs font-bold uppercase rounded font-bold">
+                            <button type="submit" class="w-full py-2 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded font-bold">
                               💾 Commit Mail Server Credentials
                             </button>
                           </form>
@@ -1910,7 +2376,7 @@
                           <form onSubmit={(e) => { e.preventDefault(); alert("Profile committed!"); }} class="space-y-4 font-mono text-xs">
                             <h4 class="text-xs font-bold text-white uppercase mb-1">🏢 General Corporate Details</h4>
                             <div>
-                              <label class="block text-[10px] text-brand-steelText uppercase mb-1">Company Name</label>
+                              <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Company Name</label>
                               <input 
                                 type="text"
                                 required
@@ -1920,7 +2386,7 @@
                               />
                             </div>
                             <div>
-                              <label class="block text-[10px] text-brand-steelText uppercase mb-1">Company Support Email</label>
+                              <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold font-mono">Company Support Email</label>
                               <input 
                                 type="email"
                                 required
@@ -2410,7 +2876,7 @@
 
                             <div class="space-y-4">
                               <div>
-                                <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Assign Mechanic / Fitter</label>
+                                <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold font-mono">Assign Mechanic / Fitter</label>
                                 <select 
                                   required
                                   value={jobArtisanId}
@@ -2426,23 +2892,23 @@
 
                               <div class="grid grid-cols-2 gap-3">
                                 <div>
-                                  <label class="block text-xs font-mono text-brand-steelText uppercase mb-1">Expected Days</label>
+                                  <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-mono">Expected Days</label>
                                   <input 
                                     type="number" 
                                     min="1"
                                     value={jobDays}
                                     onChange={(e) => setJobDays(e.target.value)}
-                                    class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white"
+                                    class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white font-mono"
                                   />
                                 </div>
                                 <div>
-                                  <label class="block text-xs font-mono text-brand-steelText uppercase mb-1">Tech Count</label>
+                                  <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-mono">Tech Count</label>
                                   <input 
                                     type="number" 
                                     min="1"
                                     value={jobPeopleCount}
                                     onChange={(e) => setJobPeopleCount(e.target.value)}
-                                    class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white"
+                                    class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white font-mono"
                                   />
                                 </div>
                               </div>
@@ -2547,9 +3013,9 @@
                       </div>
                     )}
 
-                    {/* PLANT -> ARTISAN PORTAL (Isolated Artisan dashboard) */}
+                    {/* PLANT -> ARTISAN PORTAL */}
                     {currentRole === "PLANT_ARTISAN" && (
-                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 font-sans">
                         
                         {/* Active work orders */}
                         <div class="lg:col-span-2 space-y-6">
@@ -2588,20 +3054,20 @@
                                         <span class="text-xs bg-slate-800 border border-brand-steelBorder text-brand-orange px-2 py-0.5 rounded font-mono">
                                           {wo.id}
                                         </span>
-                                        <h3 class="text-lg font-bold text-white uppercase brand-font mt-1">{wo.title}</h3>
+                                        <h3 class="text-lg font-bold text-white uppercase brand-font mt-1 font-mono">{wo.title}</h3>
                                         <p class="text-xs text-brand-steelText mt-0.5 font-mono">
                                           Asset: {wo.assetName} ({wo.serial}) // SLA: {wo.durationExpected} days
                                         </p>
                                       </div>
 
-                                      <div class="flex items-center gap-2">
+                                      <div class="flex items-center gap-2 font-mono">
                                         <button 
                                           onClick={() => setActivePrintWO(wo)}
-                                          class="px-2.5 py-1 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange text-brand-orange rounded text-xs font-mono uppercase"
+                                          class="px-2.5 py-1 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange text-brand-orange rounded text-xs uppercase"
                                         >
                                           🖨️ PDF / Print Sheet
                                         </button>
-                                        <span class={`text-xs px-3 py-1 font-mono font-bold rounded-full ${
+                                        <span class={`text-xs px-3 py-1 font-bold rounded-full ${
                                           wo.status === "Pending" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" :
                                           wo.status === "In-Progress" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" :
                                           wo.status === "Awaiting Spares" ? "bg-red-500/20 text-red-500 border border-red-500/40" :
@@ -2622,8 +3088,8 @@
                                       <strong>GUIDELINE:</strong> {wo.description}
                                     </div>
 
-                                    <div class="my-4">
-                                      <div class="flex justify-between text-xs font-mono text-slate-400 mb-1">
+                                    <div class="my-4 font-mono">
+                                      <div class="flex justify-between text-xs text-slate-400 mb-1">
                                         <span>Work completion progress</span>
                                         <span class="text-brand-orange font-bold">{wo.progress}%</span>
                                       </div>
@@ -2642,10 +3108,10 @@
                                     )}
 
                                     {wo.status !== "Pending" && wo.status !== "Completed" && (
-                                      <div class="space-y-4 mt-4 pt-4 border-t border-brand-steelBorder">
+                                      <div class="space-y-4 mt-4 pt-4 border-t border-brand-steelBorder font-mono text-xs">
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                           <div>
-                                            <label class="block text-xs font-mono text-brand-steelText uppercase mb-1">Adjust progress slider</label>
+                                            <label class="block text-xs text-brand-steelText uppercase mb-1">Adjust progress slider</label>
                                             <input 
                                               type="range" 
                                               min="10" 
@@ -2659,7 +3125,7 @@
                                             />
                                           </div>
                                           <div>
-                                            <label class="block text-xs font-mono text-brand-steelText uppercase mb-1">Progress logs</label>
+                                            <label class="block text-xs text-brand-steelText uppercase mb-1 font-bold">Progress logs</label>
                                             <input 
                                               type="text" 
                                               placeholder="E.g. Disassembled gear casing"
@@ -2673,7 +3139,7 @@
 
                                         <div class="bg-slate-900/40 p-4 border border-brand-steelBorder rounded flex gap-3 items-end">
                                           <div class="flex-grow">
-                                            <label class="block text-xs font-mono text-brand-steelText uppercase mb-1">Final closure notes</label>
+                                            <label class="block text-xs text-brand-steelText uppercase mb-1">Final closure notes</label>
                                             <input 
                                               type="text" 
                                               placeholder="What was completed?"
@@ -2699,7 +3165,7 @@
                                     )}
 
                                     {wo.status === "Completed" && (
-                                      <div class="text-xs text-emerald-400 font-mono mt-2 bg-emerald-950/20 p-2.5 border border-emerald-800 rounded">
+                                      <div class="text-xs text-emerald-400 font-mono mt-2 bg-emerald-950/20 p-2.5 border border-emerald-800 rounded font-sans leading-relaxed">
                                         ✔️ <strong>SLA RESOLVED:</strong> {wo.artisanNotes} <br />
                                         <span class="text-[10px] text-slate-500 mt-1 block">Closed At: {wo.completedAt}</span>
                                       </div>
@@ -2723,12 +3189,12 @@
                               <span class="text-[10px] bg-slate-900 border border-brand-steelBorder text-brand-steelText px-2 py-0.5 rounded font-mono">Live Link</span>
                             </h3>
 
-                            <div class="space-y-3 max-h-48 overflow-y-auto p-3 bg-brand-darkBg rounded border border-brand-steelBorder mb-3">
+                            <div class="space-y-3 max-h-48 overflow-y-auto p-3 bg-brand-darkBg rounded border border-brand-steelBorder mb-3 font-mono text-xs">
                               {chats.length === 0 ? (
-                                <p class="text-xs text-brand-steelText font-mono py-4 text-center">No messages exchanged.</p>
+                                <p class="text-xs text-brand-steelText py-4 text-center">No messages exchanged.</p>
                               ) : (
                                 chats.map(chat => (
-                                  <div key={chat.id} class={`p-2.5 rounded text-xs font-mono ${
+                                  <div key={chat.id} class={`p-2.5 rounded text-xs ${
                                     chat.sender === "Foreman" ? 'bg-slate-950 text-slate-400 mr-8 border-l-2 border-brand-orange' : 'bg-slate-900 text-slate-300 text-right ml-8 border-r-2 border-brand-steelText'
                                   }`}>
                                     <div class="font-bold text-[10px] text-brand-orange">{chat.sender} &rarr; {chat.receiver}</div>
@@ -2812,7 +3278,7 @@
                 <form onSubmit={handleSaveUserProfile} class="space-y-4">
                   
                   <div class="space-y-1">
-                    <label class="block text-[9px] text-brand-steelText uppercase">Profile Picture URL</label>
+                    <label class="block text-[9px] text-brand-steelText uppercase font-bold">Profile Picture URL</label>
                     <input 
                       type="text"
                       placeholder="e.g. https://images.com/photo.jpg"
@@ -2824,7 +3290,7 @@
 
                   <div class="grid grid-cols-2 gap-3">
                     <div class="space-y-1">
-                      <label class="block text-[9px] text-brand-steelText uppercase">Date of Birth (DOB)</label>
+                      <label class="block text-[9px] text-brand-steelText uppercase font-bold font-mono">Date of Birth (DOB)</label>
                       <input 
                         type="date"
                         required
@@ -2834,20 +3300,20 @@
                       />
                     </div>
                     <div class="space-y-1">
-                      <label class="block text-[9px] text-brand-steelText uppercase">Contact Number</label>
+                      <label class="block text-[9px] text-brand-steelText uppercase font-bold">Contact Number</label>
                       <input 
                         type="text"
                         required
                         placeholder="e.g. +263783291237"
                         value={profilePhone}
                         onChange={(e) => setProfilePhone(e.target.value)}
-                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white"
+                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white font-mono"
                       />
                     </div>
                   </div>
 
                   <div class="space-y-1">
-                    <label class="block text-[9px] text-brand-steelText uppercase">Home Address</label>
+                    <label class="block text-[9px] text-brand-steelText uppercase font-bold">Home Address</label>
                     <input 
                       type="text"
                       required
@@ -2862,7 +3328,7 @@
                     <h4 class="text-[10px] font-bold text-brand-orange uppercase">🚨 On-Site Emergency Contacts</h4>
                     <div class="grid grid-cols-2 gap-3">
                       <div class="space-y-1">
-                        <label class="block text-[9px] text-brand-steelText uppercase">Next of Kin Name</label>
+                        <label class="block text-[9px] text-brand-steelText uppercase font-bold font-mono">Next of Kin Name</label>
                         <input 
                           type="text"
                           required
@@ -2873,14 +3339,14 @@
                         />
                       </div>
                       <div class="space-y-1">
-                        <label class="block text-[9px] text-brand-steelText uppercase">Emergency Phone</label>
+                        <label class="block text-[9px] text-brand-steelText uppercase font-bold">Emergency Phone</label>
                         <input 
                           type="text"
                           required
                           placeholder="e.g. +263771122334"
                           value={profileEmergencyPhone}
                           onChange={(e) => setProfileEmergencyPhone(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white"
+                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white font-mono"
                         />
                       </div>
                     </div>
@@ -2895,7 +3361,7 @@
             </div>
           )}
 
-          {/* --- F. EMPLOYEE PROFILE INSPECTOR MODAL (FOR FOREMAN & MANAGEMENT SAFETY AUDITS) --- */}
+          {/* --- F. EMPLOYEE PROFILE INSPECTOR MODAL --- */}
           {inspectingEmployee && (
             <div class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto no-print">
               <div class="max-w-md w-full bg-brand-cardBg border-2 border-brand-orange rounded-xl p-8 shadow-2xl relative text-left space-y-4 font-mono text-xs">
@@ -2920,7 +3386,7 @@
                 </div>
 
                 <div class="space-y-2 bg-slate-950 p-4 rounded-lg border border-brand-steelBorder leading-relaxed">
-                  <h4 class="text-xs font-bold text-white uppercase border-b border-brand-steelBorder pb-1 mb-2">🏢 Shift Contact Profile:</h4>
+                  <h4 class="text-xs font-bold text-white uppercase border-b border-brand-steelBorder pb-1 mb-2 font-mono">🏢 Shift Contact Profile:</h4>
                   <p><strong>Roster Email:</strong> {inspectingEmployee.email}</p>
                   <p><strong>WhatsApp Line:</strong> {inspectingEmployee.whatsapp || "Not configured"}</p>
                   <p><strong>Date of Birth (DOB):</strong> {inspectingEmployee.dob || "Not configured"}</p>
@@ -2933,7 +3399,7 @@
                   <p><strong>Emergency Contact Phone:</strong> <span class="text-brand-orange font-bold font-mono">{inspectingEmployee.emergencyPhone || "Not configured"}</span></p>
                 </div>
 
-                <div class="text-center">
+                <div class="text-center font-sans">
                   <p class="text-[9px] text-slate-500 leading-normal">Keep this emergency card secure. Dispatched in compliance with Mining Health & Safety Act.</p>
                 </div>
 
@@ -2956,7 +3422,7 @@
                 <div id="print-sheet-content" class="print-card space-y-8 font-serif text-black leading-relaxed">
                   
                   {/* Header */}
-                  <div class="border-b-2 border-black pb-4 flex justify-between items-start">
+                  <div class="border-b-2 border-black pb-4 flex justify-between items-start font-sans">
                     <div>
                       <h1 class="text-xl font-bold tracking-tight uppercase">{companyName}</h1>
                       <p class="text-xs tracking-wider font-mono">OUTAGE CLEARANCE COMPLIANCE CERTIFICATE</p>
@@ -2978,9 +3444,9 @@
                   </div>
 
                   {/* Section 1: Specifications */}
-                  <div class="space-y-3">
-                    <h3 class="text-sm font-bold uppercase border-b border-black pb-1 font-sans">1. OUTAGE WORK ORDER OVERVIEW:</h3>
-                    <table class="w-full text-xs text-left border-collapse font-sans">
+                  <div class="space-y-3 font-sans">
+                    <h3 class="text-sm font-bold uppercase border-b border-black pb-1">1. OUTAGE WORK ORDER OVERVIEW:</h3>
+                    <table class="w-full text-xs text-left border-collapse">
                       <tbody>
                         <tr class="border-b border-slate-200">
                           <td class="py-1.5 font-bold w-1/3">Work Order Serial:</td>
@@ -3051,7 +3517,7 @@
                     </div>
 
                     <div class="space-y-6">
-                      <p class="border-b border-black text-center italic text-[11px] h-8 flex items-end justify-center text-slate-700">
+                      <p class="border-b border-black text-center italic text-[11px] h-8 flex items-end justify-center text-slate-700 font-sans">
                         Verified by Foreman Tau
                       </p>
                       <p class="text-center uppercase font-bold text-[9px] text-slate-800">Shift Foreman<br />(Verification & Date)</p>
@@ -3061,7 +3527,7 @@
                       <p class="border-b border-black text-center italic text-[11px] h-8 flex items-end justify-center text-slate-700">
                         {activePrintWO.completedAt ? activePrintWO.assignedToName : "___________________"}
                       </p>
-                      <p class="text-center uppercase font-bold text-[9px] text-slate-800">Artisan Technician<br />(Execution & Date)</p>
+                      <p class="text-center uppercase font-bold text-[9px] text-slate-800 font-sans">Artisan Technician<br />(Execution & Date)</p>
                     </div>
 
                   </div>
@@ -3148,7 +3614,7 @@
                   <td class="py-3 text-brand-orange font-bold pl-2">{wo.id}</td>
                   <td class="py-3">
                     <span class="font-bold text-white block">{wo.title}</span>
-                    <span class="text-[10px] text-slate-400 block">{wo.description.slice(0, 50)}...</span>
+                    <span class="text-[10px] text-slate-400 block font-mono">{wo.description.slice(0, 50)}...</span>
                   </td>
                   <td class="py-3">{wo.assetName}</td>
                   <td class="py-3 text-brand-steelText">{wo.assignedToName}</td>
@@ -3163,7 +3629,7 @@
                       {wo.status}
                     </span>
                   </td>
-                  <td class="py-3 pr-2">
+                  <td class="py-3 pr-2 animate-duration-300">
                     <div class="flex items-center gap-2">
                       <div class="w-16 bg-slate-900 h-2 rounded overflow-hidden">
                         <div class="bg-brand-orange h-full" style={{ width: `${wo.progress}%` }}></div>
@@ -3183,6 +3649,5 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a25d80ca2df18a59',t:'MTc4NTg0NTg4OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f"}' crossorigin="anonymous"></script>
 </body>
 </html>
