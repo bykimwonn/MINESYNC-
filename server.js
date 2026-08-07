@@ -112,6 +112,18 @@ function createDynamicTransporter(smtp) {
       }
     });
   }
+  // --- GLOBAL SYSTEM SMTP FALLBACK (Zero-Setup for other companies!) ---
+  if (process.env.GLOBAL_SMTP_HOST && process.env.GLOBAL_SMTP_USER && process.env.GLOBAL_SMTP_PASS) {
+    return nodemailer.createTransport({
+      host: process.env.GLOBAL_SMTP_HOST,
+      port: parseInt(process.env.GLOBAL_SMTP_PORT) || 587,
+      secure: parseInt(process.env.GLOBAL_SMTP_PORT) === 465,
+      auth: {
+        user: process.env.GLOBAL_SMTP_USER,
+        pass: process.env.GLOBAL_SMTP_PASS
+      }
+    });
+  }
   return null;
 }
 
