@@ -234,6 +234,7 @@
       const [typedRecoveryCompany, setTypedRecoveryCompany] = useState("");
       const [selectedLoginCompany, setSelectedLoginCompany] = useState("");
       const [restoreCloudKeyInput, setRestoreCloudKeyInput] = useState("");
+      const [linkedMode, setLinkedMode] = useState(() => localStorage.getItem("msync_v20_linked_mode") || "EMPLOYEE");
       const [groqApiKey, setGroqApiKey] = useState(() => localStorage.getItem("msync_v20_groq_api_key") || "");
       const [btaiAnalystReport, setBtaiAnalystReport] = useState("");
       const [loadingAiReport, setLoadingAiReport] = useState(false);
@@ -2201,96 +2202,143 @@
           {/* --- FIRST-TIME DEVICE DETECTION ONBOARDING LANDING --- */}
           {showDeviceSetup && (
             <div class="fixed inset-0 z-50 bg-[#060911] flex items-center justify-center p-6 text-center overflow-y-auto font-sans text-xs">
-              <div class="max-w-2xl w-full bg-slate-950 border-2 border-brand-orange/60 rounded-3xl p-8 shadow-[0_0_50px_rgba(255,107,0,0.15)] space-y-6 text-left relative">
+              <div class="max-w-2xl w-full bg-slate-950 border-2 border-brand-orange/60 rounded-3xl p-8 shadow-[0_0_50px_rgba(255,107,0,0.15)] space-y-6 text-left relative font-sans text-xs">
                 
                 {setupStateStep !== "NEW_OR_RETURNING" && (
                   <button 
                     onClick={() => setSetupStateStep("NEW_OR_RETURNING")} 
                     class="absolute top-6 left-6 text-xs font-mono text-brand-steelText hover:text-white flex items-center gap-1 font-bold"
                   >
-                    &larr; Return to Central Gateway
+                    &larr; Back to Portal Gateway
                   </button>
                 )}
 
                 <div class="flex flex-col items-center justify-center text-center">
-                  <div class="w-16 h-16 bg-brand-orange/10 border-2 border-brand-orange rounded-2xl flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(255,107,0,0.2)] animate-pulse">
-                    ⚡
+                  <div class="w-14 h-14 bg-brand-orange/10 border-2 border-brand-orange rounded-2xl flex items-center justify-center text-2xl shadow-[0_0_20px_rgba(255,107,0,0.2)] animate-pulse">
+                    ⚙️
                   </div>
-                  <h1 class="text-3xl font-black tracking-widest text-white mt-4 brand-font uppercase">
-                    MINESYNC OPERATIONS GATEWAY
+                  <h1 class="text-3xl font-black tracking-widest text-white mt-3 brand-font uppercase">
+                    MINESYNC GATEWAY
                   </h1>
-                  <p class="text-[10px] text-brand-orange font-mono font-bold tracking-widest uppercase">Plant Handover & Device Binding Matrix</p>
+                  <p class="text-[10px] text-brand-orange font-mono font-bold tracking-widest uppercase">Select Access Mode</p>
                 </div>
 
                 {setupStateStep === "NEW_OR_RETURNING" && (
-                  <div class="space-y-6">
+                  <div class="space-y-6 font-mono">
                     <p class="text-xs text-slate-400 leading-relaxed text-center font-sans">
-                      Device binding required. To link this workstation terminal, select your organization channel below:
+                      To establish connection with your metallurgical database, select your gateway mode below:
                     </p>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                       
-                      {/* Option A: Setup New Organisation */}
+                      {/* Card 1: Register New Organisation */}
+                      <button 
+                        onClick={() => {
+                          setSetupStateStep("NEW_COMPANY_OWNER_AUTH");
+                        }}
+                        class="p-5 bg-slate-900/40 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-2xl text-left transition-all group flex flex-col justify-between h-52 shadow-lg hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
+                      >
+                        <div>
+                          <div class="w-10 h-10 bg-brand-orange/10 border border-brand-orange/30 rounded-xl flex items-center justify-center text-xl mb-3">👑</div>
+                          <span class="text-xs font-bold text-white uppercase font-sans tracking-wide block">1. Register New Company</span>
+                          <p class="text-[10px] text-brand-steelText mt-1 font-sans leading-relaxed">
+                            Requires Owner master credentials. Setup corporate directories, logo, and SMTP mail server nodes.
+                          </p>
+                        </div>
+                        <span class="text-brand-orange font-bold text-[10px] uppercase font-mono group-hover:translate-x-1 transition-transform mt-3">Owner Setup &rarr;</span>
+                      </button>
+
+                      {/* Card 2: Return as Administrator */}
                       <button 
                         onClick={() => {
                           setTypedRecoveryCompany("");
-                          setSetupStateStep("NEW_COMPANY_FORM");
+                          setSetupStateStep("RETURNING_ADMIN_LINK");
                         }}
-                        class="p-5 bg-slate-900/40 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-2xl text-left transition-all group flex flex-col justify-between h-48 shadow-lg hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
+                        class="p-5 bg-slate-900/40 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-2xl text-left transition-all group flex flex-col justify-between h-52 shadow-lg hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
                       >
                         <div>
-                          <div class="w-10 h-10 bg-brand-orange/10 border border-brand-orange/30 rounded-xl flex items-center justify-center text-xl mb-3">🆕</div>
-                          <span class="text-xs font-bold text-white uppercase font-sans tracking-wide">New Organisation</span>
+                          <div class="w-10 h-10 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-center text-xl mb-3">🛡️</div>
+                          <span class="text-xs font-bold text-white uppercase font-sans tracking-wide block">2. Admin returning</span>
                           <p class="text-[10px] text-brand-steelText mt-1 font-sans leading-relaxed">
-                            Initialize a clean database node. Setup company contacts, logo, and system owner console.
+                            For Administrators to manage rosters, reset passwords, configure guidelines, and trigger backup archives.
                           </p>
                         </div>
-                        <span class="text-brand-orange font-bold text-[10px] uppercase font-mono group-hover:translate-x-1 transition-transform mt-3">Configure &rarr;</span>
+                        <span class="text-brand-orange font-bold text-[10px] uppercase font-mono group-hover:translate-x-1 transition-transform mt-3">Admin Portal &rarr;</span>
                       </button>
 
-                      {/* Option B: Link Returning Organisation */}
+                      {/* Card 3: Employee dispatch portal */}
                       <button 
                         onClick={() => {
-                          fetchRegisteredCompanies();
-                          setSetupStateStep("RETURNING_COMPANY_FORM");
+                          setTypedRecoveryCompany("");
+                          setSetupStateStep("EMPLOYEE_PORTAL_LINK");
                         }}
-                        class="p-5 bg-slate-900/40 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-2xl text-left transition-all group flex flex-col justify-between h-48 shadow-lg hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
+                        class="p-5 bg-slate-900/40 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-2xl text-left transition-all group flex flex-col justify-between h-52 shadow-lg hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
                       >
                         <div>
-                          <div class="w-10 h-10 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-center text-xl mb-3">🏢</div>
-                          <span class="text-xs font-bold text-white uppercase font-sans tracking-wide">Returning Company</span>
+                          <div class="w-10 h-10 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-center justify-center text-xl mb-3">🏭</div>
+                          <span class="text-xs font-bold text-white uppercase font-sans tracking-wide block">3. Employee Login</span>
                           <p class="text-[10px] text-brand-steelText mt-1 font-sans leading-relaxed">
-                            Already registered? Instantly bind this workstation to your existing company node.
+                            Access divisions for Foremen dispatches, Artisan work cards, and Engineers safety directives.
                           </p>
                         </div>
-                        <span class="text-brand-orange font-bold text-[10px] uppercase font-mono group-hover:translate-x-1 transition-transform mt-3">Link Node &rarr;</span>
-                      </button>
-
-                      {/* Option C: Restore Database */}
-                      <button 
-                        onClick={() => setSetupStateStep("RESTORE_BACKUP_ONBOARDING")}
-                        class="p-5 bg-slate-900/40 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-2xl text-left transition-all group flex flex-col justify-between h-48 shadow-lg hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
-                      >
-                        <div>
-                          <div class="w-10 h-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center text-xl mb-3">🔄</div>
-                          <span class="text-xs font-bold text-white uppercase font-sans tracking-wide">Restore State</span>
-                          <p class="text-[10px] text-brand-steelText mt-1 font-sans leading-relaxed">
-                            Recover complete data from a local JSON backup file or secure Cloud Recovery Key.
-                          </p>
-                        </div>
-                        <span class="text-brand-orange font-bold text-[10px] uppercase font-mono group-hover:translate-x-1 transition-transform mt-3">Recover &rarr;</span>
+                        <span class="text-brand-orange font-bold text-[10px] uppercase font-mono group-hover:translate-x-1 transition-transform mt-3">Enter Portal &rarr;</span>
                       </button>
 
                     </div>
                   </div>
                 )}
 
-                {/* Setup New Company Form */}
+                {/* OWNER AUTHENTICATOR (STRICTLY REQUIRED ONLY TO REGISTER NEW COMPANY) */}
+                {setupStateStep === "NEW_COMPANY_OWNER_AUTH" && (
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (ownerUsername === "BT_COMPANY" && ownerPassword === "bonganibykimwonn0783291237") {
+                      setSetupStateStep("NEW_COMPANY_FORM");
+                      setOwnerUsername("");
+                      setOwnerPassword("");
+                      triggerNotification("VIP Owner Access Granted", "Please populate company details.", "System");
+                    } else {
+                      alert("❌ Error: Invalid Owner security token credentials.");
+                    }
+                  }} class="space-y-4 font-mono text-left max-w-md mx-auto">
+                    <div class="border-b border-brand-steelBorder pb-2 text-center">
+                      <h3 class="text-sm font-bold text-brand-orange uppercase">Owner Security Gateway</h3>
+                      <p class="text-[10px] text-brand-steelText mt-0.5">Please provide master Owner authentication credentials to define a new company database.</p>
+                    </div>
+                    <div>
+                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Owner Username</label>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="Owner ID"
+                        value={ownerUsername}
+                        onChange={(e) => setOwnerUsername(e.target.value)}
+                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Owner Master Key</label>
+                      <input 
+                        type="password" 
+                        required
+                        placeholder="Master Key"
+                        value={ownerPassword}
+                        onChange={(e) => setOwnerPassword(e.target.value)}
+                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white text-xs font-mono"
+                      />
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded-lg text-xs">
+                      Authenticate & Establish Node &rarr;
+                    </button>
+                  </form>
+                )}
+
+                {/* SETUP NEW COMPANY FORM */}
                 {setupStateStep === "NEW_COMPANY_FORM" && (
                   <form onSubmit={handleRegisterNewDeviceCompany} class="space-y-4 font-mono text-xs text-left">
                     <div class="border-b border-brand-steelBorder pb-2">
-                      <h3 class="text-sm font-bold text-brand-orange uppercase">Setup New Metallurgical Node</h3>
-                      <p class="text-[10px] text-brand-steelText mt-0.5">Initialize a fresh company database workspace partitioned securely on our cloud gateway.</p>
+                      <h3 class="text-sm font-bold text-brand-orange uppercase">Initialize New Industrial Unit</h3>
+                      <p class="text-[10px] text-brand-steelText mt-0.5">Create a clean database partition on our cloud gateway.</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
@@ -2310,7 +2358,7 @@
                         <input 
                           type="email" 
                           required
-                          placeholder="support@minesync.com" 
+                          placeholder="e.g. support@company.com" 
                           value={companySupportEmail}
                           onChange={(e) => setCompanySupportEmail(e.target.value)}
                           class="w-full bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2.5 text-white font-mono text-xs focus:border-brand-orange focus:outline-none"
@@ -2320,18 +2368,18 @@
 
                     <div class="grid grid-cols-2 gap-4">
                       <div>
-                        <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Corporate Contact Number</label>
+                        <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Contact Details</label>
                         <input 
                           type="text" 
                           required
-                          placeholder="+263-78-329-1237" 
+                          placeholder="+263-..." 
                           value={companyContacts}
                           onChange={(e) => setCompanyContacts(e.target.value)}
                           class="w-full bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2.5 text-white font-mono text-xs focus:border-brand-orange focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Upload Corporate Logo Picture</label>
+                        <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Corporate Logo Picture</label>
                         <input 
                           type="file" 
                           accept="image/*"
@@ -2349,18 +2397,18 @@
                     </div>
 
                     <div>
-                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">How our Plant Works (AI Analyst preset guidelines)</label>
+                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Plant Guidelines (AI Analyst criteria)</label>
                       <textarea 
                         value={plantGuidelines}
                         onChange={(e) => setPlantGuidelines(e.target.value)}
-                        rows="3"
-                        placeholder="Configure primary conveyor belt speeds, Ball Mill capacities, flotation target frothing triggers..."
-                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2.5 text-white text-xs font-mono leading-relaxed focus:border-brand-orange focus:outline-none"
+                        rows="2"
+                        placeholder="Enter instructions..."
+                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2 text-white text-xs font-mono"
                       ></textarea>
                     </div>
 
                     <div class="flex gap-4 pt-2">
-                      <button type="submit" class="flex-grow py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded-lg text-xs font-mono">
+                      <button type="submit" class="flex-grow py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded-lg text-xs font-mono font-bold">
                         Initialize Organisation &rarr;
                       </button>
                       <button 
@@ -2368,128 +2416,172 @@
                         onClick={handleSkipSetup}
                         class="px-4 py-3 bg-slate-900 border border-brand-steelBorder text-slate-300 rounded-lg text-xs uppercase"
                       >
-                        Use Defaults
+                        Default Config
                       </button>
                     </div>
                   </form>
                 )}
 
-                {/* Link Returning Company Form */}
-                {setupStateStep === "RETURNING_COMPANY_FORM" && (
-                  <div class="space-y-4 font-mono text-xs text-left">
+                {/* LINK RETURNING ADMIN WORKSTATION */}
+                {setupStateStep === "RETURNING_ADMIN_LINK" && (
+                  <div class="space-y-4 font-mono text-xs text-left animate-duration-300">
                     <div class="border-b border-brand-steelBorder pb-2">
-                      <h3 class="text-sm font-bold text-brand-orange uppercase">Link Existing Company Database</h3>
-                      <p class="text-[10px] text-brand-steelText mt-0.5">Select your registered organization below to bind this device instantly. Any unknown companies are completely barred.</p>
+                      <h3 class="text-sm font-bold text-white uppercase flex justify-between items-center">
+                        <span>🛡️ Link Administrator Console</span>
+                        <span class="text-brand-orange text-[10px] uppercase font-mono animate-pulse">Security Gateway</span>
+                      </h3>
+                      <p class="text-[10px] text-brand-steelText mt-0.5">Please specify your registered Company Name to associate this workstation device.</p>
                     </div>
 
-                    {/* Direct Search / Spelling Validation */}
-                    <div class="space-y-1">
-                      <label class="block text-[10px] text-brand-steelText uppercase font-bold">Search Company Name</label>
-                      <div class="flex gap-2">
-                        <input 
-                          type="text" 
-                          placeholder="Type and check database..." 
-                          value={typedRecoveryCompany}
-                          onChange={(e) => setTypedRecoveryCompany(e.target.value)}
-                          class="flex-grow bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2.5 text-white font-sans text-xs focus:border-brand-orange focus:outline-none"
-                        />
-                        <button 
-                          onClick={() => {
-                            const match = registeredCompanies.find(c => c.name.toLowerCase() === typedRecoveryCompany.trim().toLowerCase());
-                            if (match) {
-                              setCompanyName(match.name);
-                              setCompanyLogoUrl(match.logoUrl);
-                              setSelectedLoginCompany(match.name);
-                              localStorage.setItem("msync_v20_company_name", match.name);
-                              localStorage.setItem("msync_v20_device_registered", "true");
-                              
-                              setWelcomePopupCompany(match.name);
-                              setShowDeviceSetup(false);
-                            } else {
-                              alert("❌ Error: No such company exists in the system database. Please check your spelling or register a new organisation.");
-                            }
-                          }}
-                          class="px-4 py-2.5 bg-brand-orange text-white rounded-lg font-bold text-xs"
-                        >
-                          Check & Link
-                        </button>
-                      </div>
-                    </div>
-
-                    <p class="text-[10px] text-brand-steelText uppercase font-bold pt-2">Database Directory Nodes ({registeredCompanies.length})</p>
-                    <div class="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-1">
-                      {registeredCompanies.length === 0 ? (
-                        <p class="text-xs text-brand-steelText font-mono p-4 bg-slate-900 rounded-lg text-center col-span-2">
-                          No active company databases found on server. Please select Option A to register a new company profile first.
-                        </p>
-                      ) : (
-                        registeredCompanies.map((comp, idx) => (
-                          <div 
-                            key={idx}
+                    <div class="space-y-3">
+                      <div>
+                        <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Company Name</label>
+                        <div class="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="Type exact name..." 
+                            value={typedRecoveryCompany}
+                            onChange={(e) => setTypedRecoveryCompany(e.target.value)}
+                            class="flex-grow bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2.5 text-white font-sans text-xs focus:border-brand-orange focus:outline-none"
+                          />
+                          <button 
                             onClick={() => {
-                              setCompanyName(comp.name);
-                              setCompanyLogoUrl(comp.logoUrl);
-                              setSelectedLoginCompany(comp.name);
-                              localStorage.setItem("msync_v20_company_name", comp.name);
-                              localStorage.setItem("msync_v20_device_registered", "true");
-                              
-                              setWelcomePopupCompany(comp.name);
-                              setShowDeviceSetup(false);
+                              const match = registeredCompanies.find(c => c.name.toLowerCase() === typedRecoveryCompany.trim().toLowerCase());
+                              if (match) {
+                                setCompanyName(match.name);
+                                setCompanyLogoUrl(match.logoUrl);
+                                setSelectedLoginCompany(match.name);
+                                localStorage.setItem("msync_v20_company_name", match.name);
+                                localStorage.setItem("msync_v20_device_registered", "true");
+                                localStorage.setItem("msync_v20_linked_mode", "ADMIN");
+                                setLinkedMode("ADMIN");
+                                
+                                setWelcomePopupCompany(match.name);
+                                setShowDeviceSetup(false);
+                              } else {
+                                alert("❌ Error: No such company exists in the system directory database. Please check your spelling or verify.");
+                              }
                             }}
-                            class="p-3 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange rounded-xl flex items-center gap-3 cursor-pointer transition-all hover:bg-brand-orange/5"
+                            class="px-4 py-2.5 bg-brand-orange text-white font-bold rounded-lg uppercase"
                           >
-                            <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center p-1 border border-brand-steelBorder flex-shrink-0">
-                              <img src={comp.logoUrl} alt="Logo" class="max-h-full max-w-full object-contain" />
-                            </div>
-                            <div class="overflow-hidden">
-                              <span class="text-xs font-bold text-white block truncate">{comp.name}</span>
-                              <span class="text-[9px] text-slate-400 block truncate">{comp.supportEmail}</span>
-                            </div>
-                          </div>
-                        ))
-                      )}
+                            Link Node
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="pt-2">
+                        <span class="block text-[10px] text-brand-steelText uppercase mb-2 font-bold">Active Directories Directory:</span>
+                        <div class="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                          {registeredCompanies.length === 0 ? (
+                            <p class="text-[10px] text-brand-steelText italic p-2 col-span-2">No nodes registered yet. Select Card 1 to initialize a company database.</p>
+                          ) : (
+                            registeredCompanies.map((c, idx) => (
+                              <div 
+                                key={idx}
+                                onClick={() => {
+                                  setCompanyName(c.name);
+                                  setCompanyLogoUrl(c.logoUrl);
+                                  setSelectedLoginCompany(c.name);
+                                  localStorage.setItem("msync_v20_company_name", c.name);
+                                  localStorage.setItem("msync_v20_device_registered", "true");
+                                  localStorage.setItem("msync_v20_linked_mode", "ADMIN");
+                                  setLinkedMode("ADMIN");
+                                  
+                                  setWelcomePopupCompany(c.name);
+                                  setShowDeviceSetup(false);
+                                }}
+                                class="p-2 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange rounded-xl cursor-pointer flex items-center gap-2"
+                              >
+                                <div class="w-8 h-8 bg-white rounded flex items-center justify-center p-0.5 flex-shrink-0">
+                                  <img src={c.logoUrl} alt="logo" class="max-h-full max-w-full object-contain" />
+                                </div>
+                                <span class="text-[11px] font-bold text-white truncate">{c.name}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* Restore Backup Onboarding Form */}
-                {setupStateStep === "RESTORE_BACKUP_ONBOARDING" && (
-                  <div class="space-y-4 font-mono text-xs text-left">
+                {/* LINK EMPLOYEE GATEWAY */}
+                {setupStateStep === "EMPLOYEE_PORTAL_LINK" && (
+                  <div class="space-y-4 font-mono text-xs text-left animate-duration-300">
                     <div class="border-b border-brand-steelBorder pb-2">
-                      <h3 class="text-xs font-bold text-brand-orange uppercase">Restore Plant Database State</h3>
-                      <p class="text-[10px] text-brand-steelText mt-0.5">Load your historical database to configure your workspace instantly.</p>
+                      <h3 class="text-sm font-bold text-white uppercase flex justify-between items-center">
+                        <span>🏭 Link Employee dispatch Node</span>
+                        <span class="text-brand-orange text-[10px] uppercase font-mono animate-pulse">Operations Portal</span>
+                      </h3>
+                      <p class="text-[10px] text-brand-steelText mt-0.5">Please provide your company name to open employee divisions.</p>
                     </div>
-                    
-                    <div class="space-y-4">
-                      {/* Method A: Local File */}
-                      <div class="p-4 bg-slate-900/60 border border-brand-steelBorder rounded-xl space-y-2">
-                        <span class="block text-[10px] text-white uppercase font-sans font-bold">Method A: Upload backup .json file</span>
-                        <input 
-                          type="file" 
-                          accept=".json"
-                          onChange={handleLocalRestoreUpload}
-                          class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-brand-steelBorder file:text-[10px] file:font-bold file:bg-slate-950 file:text-white"
-                        />
-                      </div>
 
-                      {/* Method B: Cloud key */}
-                      <div class="p-4 bg-slate-900/60 border border-brand-steelBorder rounded-xl space-y-2">
-                        <span class="block text-[10px] text-white uppercase font-sans font-bold">Method B: Retrieve from Cloud Key</span>
+                    <div class="space-y-3">
+                      <div>
+                        <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Company Name</label>
                         <div class="flex gap-2">
                           <input 
                             type="text" 
-                            placeholder="e.g. MS-RECOVERY-A8E9B3"
-                            value={restoreCloudKeyInput}
-                            onChange={(e) => setRestoreCloudKeyInput(e.target.value)}
-                            class="flex-grow bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2 text-white text-xs focus:outline-none focus:border-brand-orange font-mono"
+                            placeholder="Type exact name..." 
+                            value={typedRecoveryCompany}
+                            onChange={(e) => setTypedRecoveryCompany(e.target.value)}
+                            class="flex-grow bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2.5 text-white font-sans text-xs focus:border-brand-orange focus:outline-none"
                           />
                           <button 
-                            type="button" 
-                            onClick={handleCloudRestoreExecute}
-                            class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-lg uppercase text-xs font-sans font-bold"
+                            onClick={() => {
+                              const match = registeredCompanies.find(c => c.name.toLowerCase() === typedRecoveryCompany.trim().toLowerCase());
+                              if (match) {
+                                setCompanyName(match.name);
+                                setCompanyLogoUrl(match.logoUrl);
+                                setSelectedLoginCompany(match.name);
+                                localStorage.setItem("msync_v20_company_name", match.name);
+                                localStorage.setItem("msync_v20_device_registered", "true");
+                                localStorage.setItem("msync_v20_linked_mode", "EMPLOYEE");
+                                setLinkedMode("EMPLOYEE");
+                                
+                                setWelcomePopupCompany(match.name);
+                                setShowDeviceSetup(false);
+                              } else {
+                                alert("❌ Error: No such company exists in the system directory database. Please check your spelling.");
+                              }
+                            }}
+                            class="px-4 py-2.5 bg-brand-orange text-white font-bold rounded-lg uppercase"
                           >
-                            Synchronize &rarr;
+                            Connect Node
                           </button>
+                        </div>
+                      </div>
+
+                      <div class="pt-2">
+                        <span class="block text-[10px] text-brand-steelText uppercase mb-2 font-bold">Active Company Roster Databases:</span>
+                        <div class="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                          {registeredCompanies.length === 0 ? (
+                            <p class="text-[10px] text-brand-steelText italic p-2 col-span-2">No companies registered yet. Register New Company first.</p>
+                          ) : (
+                            registeredCompanies.map((c, idx) => (
+                              <div 
+                                key={idx}
+                                onClick={() => {
+                                  setCompanyName(c.name);
+                                  setCompanyLogoUrl(c.logoUrl);
+                                  setSelectedLoginCompany(c.name);
+                                  localStorage.setItem("msync_v20_company_name", c.name);
+                                  localStorage.setItem("msync_v20_device_registered", "true");
+                                  localStorage.setItem("msync_v20_linked_mode", "EMPLOYEE");
+                                  setLinkedMode("EMPLOYEE");
+                                  
+                                  setWelcomePopupCompany(c.name);
+                                  setShowDeviceSetup(false);
+                                }}
+                                class="p-2 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange rounded-xl cursor-pointer flex items-center gap-2"
+                              >
+                                <div class="w-8 h-8 bg-white rounded flex items-center justify-center p-0.5 flex-shrink-0">
+                                  <img src={c.logoUrl} alt="logo" class="max-h-full max-w-full object-contain" />
+                                </div>
+                                <span class="text-[11px] font-bold text-white truncate">{c.name}</span>
+                              </div>
+                            ))
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2499,7 +2591,6 @@
               </div>
             </div>
           )}
-
           {/* --- B. PROFESSIONAL LOADING SCREEN --- */}
           {appLoading && !showDeviceSetup && (
             <div class="fixed inset-0 z-50 bg-[#060911] flex flex-col items-center justify-center p-6 text-center select-none">
@@ -2655,532 +2746,255 @@
             {!currentUser && (
               <div class="max-w-4xl mx-auto py-12 animate-duration-300">
                 
-                {sessionPath === "LANDING" && (
-                  <div class="text-center space-y-8 animate-duration-300">
+                {/* SUBSEQUENT VISITS: DIRECT LOGIN FORMS GATED BY LINKEDMODE */}
+                {!showDeviceSetup && (
+                  <div class="max-w-md mx-auto bg-brand-cardBg border border-brand-steelBorder rounded-2xl shadow-2xl p-8 space-y-6 text-left relative">
                     
-                    {recoveryState === "NONE" ? (
-                      <div class="space-y-12">
-                        
-                        {/* WRONG COMPANY ERROR WARNING */}
-                        {errorMsg && <div class="bg-red-950 border border-red-700 text-red-200 text-xs p-3 rounded max-w-md mx-auto font-mono text-left">{errorMsg}</div>}
-
-                        {/* COMPANY SELECTION FIELD ON SIGN-IN (Spelling Validation active) */}
-                        <div class="max-w-md mx-auto p-4 bg-brand-cardBg border border-brand-steelBorder rounded-xl text-left space-y-3 font-mono text-xs animate-duration-300">
-                          <label class="block text-[10px] text-brand-orange uppercase font-bold">1. Establish Target Roster Company</label>
-                          <p class="text-[10px] text-brand-steelText leading-relaxed">Type your company name. Autocomplete will suggestions matching directories.</p>
-                          <div class="relative">
-                            <input 
-                              type="text"
-                              required
-                              placeholder="Type Company Name..."
-                              value={selectedLoginCompany}
-                              onChange={(e) => handleSelectLoginCompanyType(e.target.value)}
-                              class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white font-mono"
-                            />
-                            {companySuggestions.length > 0 && (
-                              <div class="absolute z-45 left-0 right-0 bg-slate-955 border border-brand-steelBorder mt-1 rounded max-h-32 overflow-y-auto">
-                                {companySuggestions.map((c, idx) => (
-                                  <div 
-                                    key={idx} 
-                                    onClick={() => { setSelectedLoginCompany(c); setCompanySuggestions([]); }}
-                                    class="p-2 hover:bg-slate-800 cursor-pointer text-slate-300 border-b border-brand-steelBorder last:border-0"
-                                  >
-                                    🏢 {c}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* DEVICE REMEMBRANCE RESET / CHANGE COMPANY (Friction fix requested by user!) */}
-                          <div class="pt-2 border-t border-brand-steelBorder/40 text-center">
-                            <button 
-                              type="button"
-                              onClick={handleResetDeviceRemembrance}
-                              class="text-[10px] text-brand-orange hover:text-brand-orangeHover hover:underline flex items-center justify-center gap-1.5 mx-auto font-bold font-mono"
-                            >
-                              📱 Change Company & Reset Device Remembrance
-                            </button>
-                          </div>
-                        </div>
-
-                        <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight text-white mb-4 uppercase brand-font animate-pulse">
-                          SELECT ACCESS LEVEL
-                        </h2>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-                          
-                          {/* OWNER SECTION - ONLY SHOWN IF ADMINS === 0 */}
-                          {admins.length === 0 ? (
-                            <button 
-                              onClick={() => {
-                                if (!selectedLoginCompany.trim()) {
-                                  alert("Please establish Target Company above first!");
-                                  return;
-                                }
-                                setSessionPath("OWNER_LOGIN");
-                              }}
-                              class="group text-left p-6 bg-brand-orange/5 border border-brand-orange/40 hover:border-brand-orange rounded-xl shadow-xl transition-all duration-300 transform hover:-translate-y-1 col-span-2 border-dashed"
-                            >
-                              <div class="flex items-center justify-between">
-                                <div class="text-brand-orange text-3xl mb-2 group-hover:scale-110 transition-transform">👑</div>
-                                <span class="text-[10px] bg-brand-orange/20 border border-brand-orange/40 text-brand-orange font-bold font-mono px-2 py-0.5 rounded animate-pulse">PRISTINE DEPLOYMENT MODE</span>
-                              </div>
-                              <h3 class="text-lg font-bold text-white uppercase brand-font mb-2">
-                                OWNER Setup Console
-                              </h3>
-                              <p class="text-xs text-brand-steelText leading-relaxed">
-                                Enter the secure system handover console. Set the initial system administrators. Once completed, this Owner button will self-destruct.
-                              </p>
-                              <div class="mt-4 text-xs font-bold text-brand-orange font-mono uppercase tracking-wider group-hover:translate-x-1 transition-transform animate-bounce">
-                                Configure Admin Node &rarr;
-                              </div>
-                            </button>
-                          ) : null}
-
-                          {/* ADMIN CARD */}
-                          <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl shadow-xl space-y-4 text-left font-mono text-xs">
-                            <div class="text-brand-orange text-3xl">🛡️</div>
-                            <h3 class="text-lg font-bold text-white uppercase brand-font font-sans">
-                              ADMINISTRATOR
-                            </h3>
-                            <p class="text-xs text-brand-steelText leading-relaxed font-sans text-xs">
-                              Roster dispatcher, trade registries, supporting emails details, override password overrides, and online workforce tracking logs.
-                            </p>
-                            <div class="flex gap-2">
-                              <button 
-                                onClick={() => {
-                                  if (!selectedLoginCompany.trim()) {
-                                    alert("Please establish Target Company first!");
-                                    return;
-                                  }
-                                  if (admins.length === 0) {
-                                    alert("Access Locked: System handover must be executed via Owner login first.");
-                                    return;
-                                  }
-                                  setSessionPath("ADMIN_LOGIN");
-                                }}
-                                class="flex-grow py-2 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded font-mono font-bold font-sans text-xs"
-                              >
-                                Log In Admin &rarr;
-                              </button>
-                              
-                              <button 
-                                onClick={() => {
-                                  if (admins.length === 0) {
-                                    alert("Access Locked: System handover must be executed via Owner login first.");
-                                    return;
-                                  }
-                                  setShowOpsBypassModal(true);
-                                }}
-                                class="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-brand-steelBorder text-slate-300 font-bold rounded uppercase transition-colors"
-                              >
-                                🔄 Ops Reset
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* PLANT SECTOR CARD */}
-                          <button 
-                            onClick={() => {
-                              if (!selectedLoginCompany.trim()) {
-                                alert("Please establish Target Company above first!");
-                                  return;
-                                }
-                              if (admins.length === 0) {
-                                alert("Access Locked: System handover must be executed first.");
-                                return;
-                              }
-                              setSessionPath("PLANT_SELECT");
-                            }}
-                            class={`group text-left p-6 bg-brand-cardBg border rounded-xl shadow-xl transition-all duration-300 transform hover:-translate-y-1 ${
-                              admins.length === 0 ? 'opacity-40 border-brand-steelBorder cursor-not-allowed' : 'border-brand-steelBorder hover:border-brand-orange hover:bg-slate-900'
-                            }`}
-                          >
-                            <div class="text-brand-orange text-3xl mb-4 group-hover:scale-110 transition-transform font-mono text-xs font-bold font-sans">🏭</div>
-                            <h3 class="text-lg font-bold text-white uppercase brand-font mb-2">
-                              PLANT OPERATIONS
-                            </h3>
-                            <p class="text-xs text-brand-steelText leading-relaxed font-sans">
-                              Operational hub for Section/Ops Engineers, Planners, Shift Foremen dispatches, and Artisan field mechanic workspaces.
-                            </p>
-                            <div class="mt-4 text-xs font-bold text-brand-orange font-mono uppercase tracking-wider group-hover:translate-x-1 transition-transform">
-                              Deploy Divisions &rarr;
-                            </div>
-                          </button>
-
-                        </div>
-
-                        {/* FORGOT PASSWORD FORM */}
-                        <div class="max-w-md mx-auto pt-10 border-t border-brand-steelBorder/40 mt-10 text-left font-mono">
-                          <h4 class="text-sm font-bold uppercase text-white brand-font mb-2">🔑 Forgot Your Password?</h4>
-                          <p class="text-[11px] text-brand-steelText mb-4 font-sans font-bold">Enter your registered email address to receive a secure recovery code inside your email application.</p>
-                          <form onSubmit={handleTriggerForgotPassword} class="flex gap-2">
-                            <input 
-                              type="email"
-                              required
-                              placeholder="e.g. name@company.com"
-                              value={forgotPasswordEmail}
-                              onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                              class="flex-grow bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-xs text-white focus:outline-none"
-                            />
-                            <button type="submit" class="px-4 py-2 bg-brand-orange text-white text-xs font-bold uppercase rounded font-mono font-bold font-mono">
-                              Recover via Email App
-                            </button>
-                          </form>
-                        </div>
+                    {/* Nice Static Header inside welcome login card */}
+                    <div class="text-center border-b border-brand-steelBorder pb-4">
+                      <div class="w-14 h-14 bg-white rounded-xl mx-auto flex items-center justify-center p-1.5 border border-brand-steelBorder/40">
+                        <img src={companyLogoUrl} alt="logo" class="max-h-full max-w-full object-contain" />
                       </div>
-                    ) : (
-                      // PASSWORD RECOVERY VERIFICATION FORM
-                      <div class="max-w-md mx-auto bg-brand-cardBg border border-brand-steelBorder p-8 rounded-xl shadow-2xl text-left space-y-4 font-mono text-xs animate-duration-300">
-                        <div class="text-center">
-                          <span class="text-3xl">🔒</span>
-                          <h3 class="text-lg font-bold uppercase text-white brand-font mt-2">Security Recovery</h3>
-                          <p class="text-xs text-brand-steelText font-mono font-bold">Email linked: {recoveredAccountEmail}</p>
-                        </div>
-
-                        {errorMsg && <div class="bg-red-950 border border-red-700 text-red-200 text-xs p-3 rounded mb-4 font-mono">{errorMsg}</div>}
-
-                        {recoveryState === "SENT" && (
-                          <form onSubmit={handleConfirmRecoveryCode} class="space-y-4 font-mono">
-                            <div class="bg-brand-orange/10 border border-brand-orange/30 p-2.5 rounded text-[11px] text-brand-orange leading-relaxed">
-                              📨 Check your Gmail / Email Client inbox now! We have dispatched a 6-digit recovery code. Enter it below to unlock:
-                            </div>
-                            <div>
-                              <label class="block text-xs uppercase mb-1 font-bold">Enter recovery Code (6-digit)</label>
-                              <input 
-                                type="text"
-                                required
-                                placeholder="------"
-                                value={recoveryCodeInput}
-                                onChange={(e) => setRecoveryCodeInput(e.target.value)}
-                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-center font-mono text-white focus:outline-none"
-                              />
-                            </div>
-                            <button type="submit" class="w-full py-2 bg-brand-orange text-white text-xs font-bold uppercase rounded font-bold font-mono">
-                              Validate Recovery Code
-                            </button>
-                            
-                            {/* GO BACK BUTTON FOR RECOVERY STAGE */}
-                            <button 
-                              onClick={() => setRecoveryState("NONE")} 
-                              type="button" 
-                              class="w-full py-2 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange text-brand-steelText hover:text-white rounded text-xs font-bold uppercase transition-colors"
-                            >
-                              &larr; Go Back to Main Menu
-                            </button>
-                          </form>
-                        )}
-
-                        {recoveryState === "CONFIRMED" && (
-                          <form onSubmit={handleCommitRecoveryPassword} class="space-y-4 font-mono">
-                            <div>
-                              <label class="block text-xs uppercase mb-1 font-bold">New Secure Password</label>
-                              <input 
-                                type="password"
-                                required
-                                placeholder="At least 5 characters"
-                                value={newForgotPassword}
-                                onChange={(e) => setNewForgotPassword(e.target.value)}
-                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm text-white focus:outline-none"
-                              />
-                            </div>
-                            <button type="submit" class="w-full py-2.5 bg-emerald-600 text-white text-xs font-bold uppercase rounded font-bold font-mono">
-                              Update Password & Recover Session
-                            </button>
-                          </form>
-                        )}
-                      </div>
-                    )}
-
-                  </div>
-                )}
-
-                {/* OWNER SIGN IN */}
-                {sessionPath === "OWNER_LOGIN" && (
-                  <div class="max-w-md mx-auto bg-brand-cardBg border border-brand-steelBorder rounded-xl p-8 shadow-2xl relative text-left font-mono text-xs">
-                    <button onClick={() => setSessionPath("LANDING")} class="absolute top-4 left-4 text-xs text-brand-steelText hover:text-white font-mono">&larr; Back</button>
-                    <div class="text-center mb-6 font-sans">
-                      <span class="text-4xl text-brand-orange">👑</span>
-                      <h3 class="text-xl font-bold uppercase text-white brand-font mt-2">Owner Security Setup</h3>
-                      <p class="text-xs text-brand-steelText font-mono">CLEAN INSTALL HANDOVER GATEWAY</p>
+                      <h2 class="text-2xl font-black text-white brand-font uppercase tracking-wide mt-2">{companyName}</h2>
+                      <p class="text-[10px] text-brand-orange uppercase font-mono font-bold tracking-wider mt-1">
+                        Welcome to {companyName}! Secure Node Active. Please Log In.
+                      </p>
                     </div>
 
-                    {errorMsg && <div class="bg-red-950 border border-red-700 text-red-200 text-xs p-3 rounded mb-4 font-mono">{errorMsg}</div>}
+                    {errorMsg && <div class="bg-red-950 border border-red-700 text-red-200 text-xs p-3 rounded font-mono font-bold">{errorMsg}</div>}
 
-                    <form onSubmit={handleOwnerLogin} class="space-y-4">
-                      <div>
-                        <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Target Company: {selectedLoginCompany}</label>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Owner Master ID</label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g. BT_COMPANY" 
-                          value={ownerUsername}
-                          onChange={(e) => setOwnerUsername(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Master Vault Key</label>
-                        <input 
-                          type="password" 
-                          placeholder="••••••••••••" 
-                          value={ownerPassword}
-                          onChange={(e) => setOwnerPassword(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange font-mono"
-                        />
-                      </div>
-                      <button type="submit" class="w-full py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold rounded tracking-wide uppercase transition-colors brand-font font-bold">
-                        Initialize Handover Configuration
-                      </button>
-                    </form>
-                  </div>
-                )}
-
-                {/* ADMIN LOGIN */}
-                {sessionPath === "ADMIN_LOGIN" && (
-                  <div class="max-w-md mx-auto bg-brand-cardBg border border-brand-steelBorder rounded-xl p-8 shadow-2xl relative text-left font-mono text-xs">
-                    <button onClick={() => setSessionPath("LANDING")} class="absolute top-4 left-4 text-xs text-brand-steelText hover:text-white font-mono">&larr; Back</button>
-                    <div class="text-center mb-6 font-sans">
-                      <span class="text-4xl text-brand-orange">🛡️</span>
-                      <h3 class="text-xl font-bold uppercase text-white brand-font mt-2 font-mono">Administrator Access</h3>
-                      <p class="text-xs text-brand-steelText font-mono animate-pulse">AUTHENTICATING SHIFT REGISTRAR</p>
-                    </div>
-
-                    {errorMsg && <div class="bg-red-950 border border-red-700 text-red-200 text-xs p-3 rounded mb-4 font-mono">{errorMsg}</div>}
-
-                    <form onSubmit={handleAdminLogin} class="space-y-4">
-                      <div>
-                        <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold font-mono">Target Company: {selectedLoginCompany}</label>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Admin Username</label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g. admin" 
-                          value={adminUsername}
-                          onChange={(e) => setAdminUsername(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange"
-                        />
-                      </div>
-                      <div>
-                        <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold font-mono">Admin Password</label>
-                        <input 
-                          type="password" 
-                          placeholder="••••••••••••" 
-                          value={adminPassword}
-                          onChange={(e) => setAdminPassword(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange font-mono"
-                        />
-                      </div>
-                      <button type="submit" class="w-full py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold rounded tracking-wide uppercase transition-colors brand-font font-bold">
-                        Access Admin Dashboard
-                      </button>
-                    </form>
-                  </div>
-                )}
-
-                {/* PLANT SUB-ROLE SELECT */}
-                {sessionPath === "PLANT_SELECT" && (
-                  <div class="text-center max-w-xl mx-auto">
-                    <button onClick={() => setSessionPath("LANDING")} class="mb-6 inline-block text-xs text-brand-steelText hover:text-white font-mono">&larr; Back to Landing</button>
-                    <h3 class="text-2xl font-bold uppercase text-white brand-font mb-2">OPERATIONS DIVISIONS</h3>
-                    <p class="text-xs text-brand-steelText mb-8">Select your specialized segment of the metallurgical workforce</p>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-left font-mono text-xs">
-                      
-                      <button 
-                        onClick={() => { setPlantSubRole("Management"); setSessionPath("PLANT_LOGIN"); setErrorMsg(""); }}
-                        class="p-5 bg-brand-cardBg border border-brand-steelBorder hover:border-brand-orange hover:bg-slate-900 rounded-lg text-left"
-                      >
-                        <div class="text-2xl mb-2">📐</div>
-                        <h4 class="text-sm font-bold text-white uppercase brand-font font-sans">Management</h4>
-                        <p class="text-[11px] text-brand-steelText mt-1 font-sans">Section/Ops Engineers & Planners. Inspects KPI curves, individual performance charts, and shortages.</p>
-                      </button>
-
-                      <button 
-                        onClick={() => { setPlantSubRole("Foreman"); setSessionPath("PLANT_LOGIN"); setErrorMsg(""); }}
-                        class="p-5 bg-brand-cardBg border border-brand-steelBorder hover:border-brand-orange hover:bg-slate-900 rounded-lg text-left font-mono"
-                      >
-                        <div class="text-2xl mb-2 font-sans font-bold">👷‍♂️</div>
-                        <h4 class="text-sm font-bold text-white uppercase brand-font font-sans font-bold">Foreman</h4>
-                        <p class="text-[11px] text-brand-steelText mt-1 font-sans">Daily coordinators. dispatches jobs, audits artisan output, handles stock alerts, and receives radio feeds.</p>
-                      </button>
-
-                      <button 
-                        onClick={() => { setPlantSubRole("Artisans"); setSessionPath("PLANT_LOGIN"); setErrorMsg(""); }}
-                        class="p-5 bg-brand-cardBg border border-brand-steelBorder hover:border-brand-orange hover:bg-slate-900 rounded-lg text-left"
-                      >
-                        <div class="text-2xl mb-2 font-mono">🔧</div>
-                        <h4 class="text-sm font-bold text-white uppercase brand-font font-sans font-bold">Artisan</h4>
-                        <p class="text-[11px] text-brand-steelText mt-1 font-sans">Technicians. Commits repairs, slides progress, complains lack of spares, and chats directly with Foreman.</p>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* PLANT SIGN IN */}
-                {sessionPath === "PLANT_LOGIN" && (
-                  <div class="max-w-md mx-auto bg-brand-cardBg border border-brand-steelBorder rounded-xl p-8 shadow-2xl relative text-left font-mono text-xs">
-                    <button onClick={() => setSessionPath("PLANT_SELECT")} class="absolute top-4 left-4 text-xs text-brand-steelText hover:text-white font-mono">&larr; Back</button>
-                    
-                    <div class="text-center mb-6">
-                      <span class="text-4xl text-brand-orange font-sans font-bold animate-duration-300">
-                        {plantSubRole === "Management" ? "📐" : plantSubRole === "Foreman" ? "👷‍♂️" : "🔧"}
-                      </span>
-                      <h3 class="text-xl font-bold uppercase text-white brand-font mt-2">{plantSubRole} Sign-On</h3>
-                      <p class="text-xs text-brand-steelText font-mono font-bold">SECURE SECTOR ACCESS CHANNEL</p>
-                    </div>
-
-                    {errorMsg && <div class="bg-red-950 border border-red-700 text-red-200 text-xs p-3 rounded mb-4 font-mono">{errorMsg}</div>}
-
-                    {!isMgmtSignup ? (
-                      <form onSubmit={handlePlantLogin} class="space-y-4 font-mono text-xs">
+                    {/* CATEGORY 2: ADMIN LOGIN PANEL */}
+                    {linkedMode === "ADMIN" && (
+                      <form onSubmit={handleAdminLogin} class="space-y-4 font-mono text-xs">
+                        <span class="text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold px-2 py-0.5 rounded font-mono uppercase block text-center">
+                          🛡️ ADMINISTRATOR SECURE PORTAL
+                        </span>
                         <div>
-                          <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Target Company: {selectedLoginCompany}</label>
-                        </div>
-                        
-                        {/* Dropdown of positions for management */}
-                        {plantSubRole === "Management" ? (
-                          <div>
-                            <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Identify Position</label>
-                            {management.length === 0 ? (
-                              <p class="text-xs text-brand-orange font-mono p-2.5 bg-brand-orange/10 border border-brand-orange/20 rounded font-sans leading-relaxed">
-                                ⚠️ No accounts configured yet. Please Sign Up below first.
-                              </p>
-                            ) : (
-                              <select 
-                                value={plantUsername}
-                                onChange={(e) => setPlantUsername(e.target.value)}
-                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange"
-                              >
-                                <option value="">-- Choose Position --</option>
-                                {management.map(m => (
-                                  <option key={m.position} value={m.position}>{m.position} ({m.name})</option>
-                                ))}
-                              </select>
-                            )}
-                          </div>
-                        ) : (
-                          <div>
-                            <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold font-mono">Operational ID / Username</label>
-                            <input 
-                              type="text" 
-                              placeholder="e.g. foreman_tau" 
-                              value={plantUsername}
-                              onChange={(e) => setPlantUsername(e.target.value)}
-                              class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange font-bold font-mono"
-                            />
-                          </div>
-                        )}
-
-                        <div>
-                          <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Enter Secret Password</label>
-                          <input 
-                            type="password" 
-                            placeholder="••••••••••••" 
-                            value={plantPassword}
-                            onChange={(e) => setPlantPassword(e.target.value)}
-                            class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange font-mono"
-                          />
-                        </div>
-
-                        <div class="pt-2 space-y-3 font-sans text-xs">
-                          <button type="submit" class="w-full py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold rounded tracking-wide uppercase transition-colors brand-font shadow-lg font-bold">
-                            Establish Safe Session
-                          </button>
-
-                          {/* Biometric verification */}
-                          {plantSubRole === "Management" && management.length > 0 && (
-                            <button 
-                              type="button"
-                              onClick={triggerBiometricScan}
-                              class="w-full py-2.5 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange hover:text-brand-orange text-brand-steelText font-bold rounded tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-2 font-mono text-xs font-sans font-bold"
-                            >
-                              <span class="text-lg">🫵</span> Simulate Fingerprint Authentication
-                            </button>
-                          )}
-                        </div>
-
-                        {plantSubRole === "Management" && (
-                          <div class="mt-4 pt-4 border-t border-brand-steelBorder text-center font-bold font-sans">
-                            <p class="text-xs text-brand-steelText font-mono">First time using MINESYNC?</p>
-                            <button 
-                              type="button" 
-                              onClick={() => { setIsMgmtSignup(true); setErrorMsg(""); }}
-                              class="mt-1 text-xs text-brand-orange hover:underline font-bold"
-                            >
-                              Create Management Credentials Now
-                            </button>
-                          </div>
-                        )}
-                      </form>
-                    ) : (
-                      // MANAGEMENT SIGN UP
-                      <form onSubmit={handleMgmtSignup} class="space-y-4">
-                        <div class="bg-brand-orange/10 border border-brand-orange/30 p-3 rounded text-[11px] text-brand-orange leading-relaxed">
-                          📌 <strong>Plant Regulation 18-A:</strong> Engineering and management logins require a role-bind position. Initialize your master authentication.
-                        </div>
-                        <div>
-                          <label class="block text-xs font-mono text-brand-steelText uppercase mb-1">Management Domain Title</label>
-                          <select 
-                            value={mgmtPosition}
-                            onChange={(e) => setMgmtPosition(e.target.value)}
-                            class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm font-mono text-white focus:outline-none"
-                          >
-                            <option value="Section Engineer">Section Engineer</option>
-                            <option value="Operations Engineer">Operations Engineer</option>
-                            <option value="Planner">Planner</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Your Full Name</label>
+                          <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Admin Username</label>
                           <input 
                             type="text" 
-                            placeholder="e.g. Ronald Sibanda" 
-                            value={mgmtFullName}
-                            onChange={(e) => setMgmtFullName(e.target.value)}
-                            class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none font-sans"
+                            required
+                            placeholder="admin_id" 
+                            value={adminUsername}
+                            onChange={(e) => setAdminUsername(e.target.value)}
+                            class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-white"
                           />
                         </div>
                         <div>
-                          <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Secure Password</label>
+                          <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Admin Password</label>
                           <input 
                             type="password" 
-                            placeholder="Set safe password" 
-                            value={mgmtPassword}
-                            onChange={(e) => setMgmtPassword(e.target.value)}
-                            class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none"
+                            required
+                            placeholder="password" 
+                            value={adminPassword}
+                            onChange={(e) => setAdminPassword(e.target.value)}
+                            class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-white"
                           />
                         </div>
-                        <div class="flex gap-2 font-mono">
-                          <button type="submit" class="flex-1 py-2 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold rounded text-xs uppercase font-bold">
-                            Configure Profile
+                        <button type="submit" class="w-full py-2.5 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded text-xs font-mono font-bold">
+                          Access Security Console &rarr;
+                        </button>
+
+                        <div class="flex justify-between items-center text-[10px] pt-2 border-t border-brand-steelBorder/40">
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              setForgotPasswordEmail(companySupportEmail);
+                              setRecoveryState("SENT");
+                              
+                              const tempCode = Math.floor(100000 + Math.random() * 900000);
+                              setRecoveryGeneratedCode(tempCode.toString());
+                              setRecoveredAccountEmail(companySupportEmail);
+                              
+                              apiFetch('/api/auth/forgot-password', {
+                                method: 'POST',
+                                body: JSON.stringify({ email: companySupportEmail })
+                              });
+                              alert("Recovery code sent to company support address: " + companySupportEmail);
+                            }}
+                            class="text-slate-400 hover:text-white hover:underline"
+                          >
+                            🔑 Forgot Password?
                           </button>
-                          <button type="button" onClick={() => setIsMgmtSignup(false)} class="px-4 py-2 bg-slate-900 border border-brand-steelBorder text-slate-300 rounded text-xs font-bold">
-                            Cancel
+                          <button 
+                            type="button" 
+                            onClick={() => setShowOpsBypassModal(true)}
+                            class="text-brand-orange hover:underline font-bold"
+                          >
+                            ⚙️ Ops Bypass
                           </button>
                         </div>
                       </form>
                     )}
 
-                    {isBiometricScanning && (
-                      <div class="absolute inset-0 rounded-xl fingerprint-scanner flex flex-col items-center justify-center text-center p-6 z-30 font-mono text-xs">
-                        <div class="w-24 h-24 bg-brand-orange/10 border-2 border-brand-orange rounded-full flex items-center justify-center pulse-animation mb-4 shadow-lg shadow-brand-orange/40 font-sans">
-                          <span class="text-5xl font-bold">🫵</span>
+                    {/* CATEGORY 3: EMPLOYEE DIVISIONAL LOGIN PANEL */}
+                    {linkedMode === "EMPLOYEE" && (
+                      <div class="space-y-4 font-mono text-xs">
+                        <span class="text-[10px] bg-blue-500/10 border border-blue-500/30 text-blue-400 font-bold px-2 py-0.5 rounded font-mono uppercase block text-center mb-2">
+                          🏭 EMPLOYEE DIVISIONAL PORTAL
+                        </span>
+                        
+                        <div>
+                          <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold font-mono">Select Plant Division</label>
+                          <select 
+                            value={plantSubRole} 
+                            onChange={(e) => {
+                              setPlantSubRole(e.target.value);
+                              setPlantUsername("");
+                              setPlantPassword("");
+                              setErrorMsg("");
+                            }}
+                            class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-xs text-white focus:outline-none"
+                          >
+                            <option value="">-- Choose Division --</option>
+                            <option value="Management">Management (Engineers, Planners)</option>
+                            <option value="Foreman">Shift Foreman</option>
+                            <option value="Artisan">Artisan (Boiler Maker, Fitter, Electrician, Supervisor)</option>
+                          </select>
                         </div>
-                        <p class="text-brand-orange font-bold font-mono tracking-wider text-sm">RECOGNIZING BIOMETRICS...</p>
-                        <p class="text-brand-steelText text-xs mt-1">Hold hand static on terminal lens.</p>
+
+                        {plantSubRole && (
+                          <form onSubmit={handlePlantLogin} class="space-y-4 font-mono">
+                            {plantSubRole === "Management" ? (
+                              <>
+                                <div>
+                                  <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold font-mono">Select Position</label>
+                                  <select 
+                                    value={plantUsername}
+                                    onChange={(e) => {
+                                      setPlantUsername(e.target.value);
+                                      setErrorMsg("");
+                                    }}
+                                    required
+                                    class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-xs text-white"
+                                  >
+                                    <option value="">-- Choose Position --</option>
+                                    <option value="Section Engineer">Section Engineer</option>
+                                    <option value="Operations Engineer">Operations Engineer</option>
+                                    <option value="Planner">Planner</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold font-mono">Security Password</label>
+                                  <input 
+                                    type="password" 
+                                    required
+                                    placeholder="Enter position password" 
+                                    value={plantPassword}
+                                    onChange={(e) => setPlantPassword(e.target.value)}
+                                    class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white"
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div>
+                                  <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold font-mono">Username</label>
+                                  <input 
+                                    type="text" 
+                                    required
+                                    placeholder="Enter your roster username" 
+                                    value={plantUsername}
+                                    onChange={(e) => setPlantUsername(e.target.value)}
+                                    class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white text-xs font-mono"
+                                  />
+                                </div>
+                                <div>
+                                  <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold font-mono">Password</label>
+                                  <input 
+                                    type="password" 
+                                    required
+                                    placeholder="Enter password" 
+                                    value={plantPassword}
+                                    onChange={(e) => setPlantPassword(e.target.value)}
+                                    class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white text-xs font-mono"
+                                  />
+                                </div>
+                              </>
+                            )}
+
+                            <div class="flex gap-2 font-sans pt-1">
+                              <button type="submit" class="flex-grow py-2.5 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded font-mono font-bold text-xs">
+                                Log In Node &rarr;
+                              </button>
+                              
+                              {plantSubRole === "Management" && (
+                                <button 
+                                  type="button" 
+                                  onClick={triggerBiometricScan}
+                                  class="px-3 py-2 bg-slate-900 border border-brand-steelBorder text-slate-300 rounded uppercase font-bold text-[10px]"
+                                >
+                                  Fingerprint Scan 🔍
+                                </button>
+                              )}
+                            </div>
+
+                            {plantSubRole === "Management" && (
+                              <div class="text-center pt-2 font-mono text-[10px] border-t border-brand-steelBorder/40">
+                                <span class="text-slate-500">First time? </span>
+                                <button 
+                                  type="button" 
+                                  onClick={() => setIsMgmtSignup(true)}
+                                  class="text-brand-orange hover:underline font-bold"
+                                >
+                                  Register Management Profile
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Artisan / Foreman password recovery */}
+                            {plantSubRole !== "Management" && (
+                              <div class="text-center pt-2 border-t border-brand-steelBorder/40 text-[10px]">
+                                <button 
+                                  type="button" 
+                                  onClick={() => {
+                                    const email = prompt("Enter registered email to dispatch code:");
+                                    if (email) {
+                                      setForgotPasswordEmail(email);
+                                      setRecoveryState("SENT");
+                                      apiFetch('/api/auth/forgot-password', {
+                                        method: 'POST',
+                                        body: JSON.stringify({ email })
+                                      })
+                                      .then(res => res.json())
+                                      .then(data => {
+                                        if (data.error) {
+                                          alert("Error: " + data.error);
+                                        } else {
+                                          setRecoveryGeneratedCode(data.recoveryCode.toString());
+                                          setRecoveredAccountEmail(data.email);
+                                          alert("Recovery code sent to: " + data.email);
+                                        }
+                                      });
+                                    }
+                                  }}
+                                  class="text-slate-400 hover:text-white hover:underline"
+                                >
+                                  🔑 Forgot Password?
+                                </button>
+                              </div>
+                            )}
+                          </form>
+                        )}
                       </div>
                     )}
+
+                    {/* Exit/Change Company links at the bottom */}
+                    <div class="pt-3 border-t border-brand-steelBorder/40 text-center font-mono">
+                      <button 
+                        type="button"
+                        onClick={handleResetDeviceRemembrance}
+                        class="text-[10px] text-slate-400 hover:text-brand-orange hover:underline font-mono"
+                      >
+                        &larr; Exit Portal & Change Company Database Link
+                      </button>
+                    </div>
+
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* SECURE DASHBOARDS (IF LOGGED IN) */}
+              </div>
+            )/* SIBLING GATED DASHBOARD DIVISIONS FOLLOW COMPLIANTLY */}            {/* SECURE DASHBOARDS (IF LOGGED IN) */}
             {currentUser && (
               <div class="space-y-6 font-sans">
                 
@@ -4994,6 +4808,6 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2730b2778974ebf',t:'MTc4NjA3MTc1Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f"}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a27590df1d183983',t:'MTc4NjA5ODIwNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f"}' crossorigin="anonymous"></script>
 </body>
 </html>
