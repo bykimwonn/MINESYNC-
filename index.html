@@ -241,7 +241,7 @@
       const [backupScheduleDate, setBackupScheduleDate] = useState(() => localStorage.getItem("msync_v20_backup_schedule_date") || "Every Sunday at 00:00");
       
       const [knownCompanies, setKnownCompanies] = useState(() => {
-        return JSON.parse(localStorage.getItem("msync_v20_known_companies")) || ["MINESYNC Metallurgical", "Bongani Metals Ltd", "Outpit Gold Refinery", "Thickener Dewatering Corp"];
+        return JSON.parse(localStorage.getItem("msync_v20_known_companies")) || [];
       });
       const [companySuggestions, setCompanySuggestions] = useState([]);
 
@@ -256,7 +256,7 @@
       const [welcomePopupCompany, setWelcomePopupCompany] = useState("");
 
       const fetchRegisteredCompanies = () => {
-        fetch('/api/companies')
+        apiFetch('/api/companies')
         .then(res => res.json())
         .then(data => {
           setRegisteredCompanies(data);
@@ -287,11 +287,11 @@
       const [inspectingEmployee, setInspectingEmployee] = useState(null);
 
       // Company configuration defaults
-      const [companyName, setCompanyName] = useState(() => localStorage.getItem("msync_v20_company_name") || "MINESYNC Metallurgical");
-      const [companyLogoUrl, setCompanyLogoUrl] = useState(() => localStorage.getItem("msync_v20_company_logo") || "uploads/1743631617095.png");
-      const [companySupportEmail, setCompanySupportEmail] = useState(() => localStorage.getItem("msync_v20_company_email") || "support@minesync.com");
-      const [companyContacts, setCompanyContacts] = useState(() => localStorage.getItem("msync_v20_company_contacts") || "+263-78-329-1237");
-      const [plantGuidelines, setPlantGuidelines] = useState(() => localStorage.getItem("msync_v20_plant_guidelines") || "Our plant operates a primary Jaw Crusher that feeds Ball Mill 2. If Ball Mill 2 is down, the entire flotation circuit is halted. Boiler makers must clear structural frame cracks within 4 hours, and fitters must resolve pulley outages within 2 hours. Spares must always be kept above 2 units.");
+      const [companyName, setCompanyName] = useState(() => localStorage.getItem("msync_v20_company_name") || "");
+      const [companyLogoUrl, setCompanyLogoUrl] = useState(() => localStorage.getItem("msync_v20_company_logo") || "");
+      const [companySupportEmail, setCompanySupportEmail] = useState(() => localStorage.getItem("msync_v20_company_email") || "");
+      const [companyContacts, setCompanyContacts] = useState(() => localStorage.getItem("msync_v20_company_contacts") || "");
+      const [plantGuidelines, setPlantGuidelines] = useState(() => localStorage.getItem("msync_v20_plant_guidelines") || "");
 
       const [smtpHost, setSmtpHost] = useState(() => localStorage.getItem("msync_v20_smtp_host") || "");
       const [smtpPort, setSmtpPort] = useState(() => localStorage.getItem("msync_v20_smtp_port") || "587");
@@ -302,6 +302,31 @@
       const [restoreOrgName, setRestoreOrgName] = useState("");
       const [restoreOrgKey, setRestoreOrgKey] = useState("");
       const [restoreStatusMsg, setRestoreStatusMsg] = useState("");
+
+      // Dynamic API base URL resolver and tenant header injector
+      const apiFetch = (endpoint, options = {}) => {
+        // Detects if running on local file protocol, fallbacks to localhost port 5000
+        const base = (window.location.protocol === "file:" || window.location.hostname === "localhost") 
+          ? "http://localhost:5000" 
+          : window.location.origin;
+          
+        const url = base + endpoint;
+        
+        if (!options.headers) {
+          options.headers = {};
+        }
+        
+        // Inject company tenant context header automatically
+        if (companyName) {
+          options.headers['X-Company-Name'] = companyName;
+        }
+        
+        if (options.body && !options.headers['Content-Type'] && !(options.body instanceof FormData)) {
+          options.headers['Content-Type'] = 'application/json';
+        }
+        
+        return fetch(url, options);
+      };
 
       // --- SCREEN LOADING ANIMATION ---
       const [appLoading, setAppLoading] = useState(true);
@@ -430,7 +455,7 @@
         e.preventDefault();
         if (!forgotPasswordEmail.trim()) return;
 
-        fetch('/api/auth/forgot-password', {
+        apiFetch('/api/auth/forgot-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: forgotPasswordEmail.trim() })
@@ -472,7 +497,7 @@
           return;
         }
 
-        fetch('/api/auth/reset-password-confirm', {
+        apiFetch('/api/auth/reset-password-confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -684,7 +709,7 @@
         const sparesCount = shortages.length;
         const mttr = getMTTR();
 
-        fetch('/api/ai/analyze', {
+        apiFetch('/api/ai/analyze', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -719,7 +744,7 @@
         if (!targetWo) return;
 
         setLoadingBtaiDirective(true);
-        fetch('/api/ai/analyze', {
+        apiFetch('/api/ai/analyze', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -772,7 +797,7 @@
 
         setPartTypedChatMsg("");
 
-        fetch('/api/chats', {
+        apiFetch('/api/chats', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -799,7 +824,7 @@
             };
             setChats(prev => [...prev, thinkingChat]);
 
-            fetch('/api/ai/analyze', {
+            apiFetch('/api/ai/analyze', {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
@@ -825,7 +850,7 @@
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               };
 
-              fetch('/api/chats', {
+              apiFetch('/api/chats', {
                 method: 'POST',
                 headers: { 
                   'Content-Type': 'application/json',
@@ -858,7 +883,7 @@
 
       // Artisan Assignment Approvals & Progress tracking
       const handleApproveJob = (woId) => {
-        fetch(`/api/work-orders/${woId}`, {
+        apiFetch(`/api/work-orders/${woId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: "In-Progress", progress: 10 })
@@ -875,7 +900,7 @@
       };
 
       const handleUpdateProgress = (woId, progressValue, progressNotes) => {
-        fetch(`/api/work-orders/${woId}`, {
+        apiFetch(`/api/work-orders/${woId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -894,7 +919,7 @@
       };
 
       const handleCompleteJob = (woId, finalNotes) => {
-        fetch(`/api/work-orders/${woId}`, {
+        apiFetch(`/api/work-orders/${woId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -935,7 +960,7 @@
 
         const activeWo = workOrders.find(wo => wo.assignedToId === currentUser.id && wo.status !== "Completed");
         if (activeWo) {
-          fetch(`/api/work-orders/${activeWo.id}`, {
+          apiFetch(`/api/work-orders/${activeWo.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: "Awaiting Spares", progressNotes: `Shortage reported: ${item}` })
@@ -999,7 +1024,7 @@
       useEffect(() => {
         if (showDeviceSetup || !companyName) return;
         
-        fetch('/api/state?company=' + encodeURIComponent(companyName))
+        apiFetch('/api/state?company=' + encodeURIComponent(companyName))
         .then(res => {
           if (!res.ok) throw new Error("No such company exists");
           return res.json();
@@ -1099,7 +1124,7 @@
       // --- ONBOARDING DEVICE BUTTON HANDLERS ---
       // --- BACKUP, DISASTER RECOVERY & USER DELETION HANDLERS ---
       const handleDownloadBackup = () => {
-        fetch('/api/backup/download')
+        apiFetch('/api/backup/download')
         .then(res => res.json())
         .then(data => {
           const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
@@ -1138,7 +1163,7 @@
         setBackupRecoveryKey(key);
         localStorage.setItem("msync_v20_recovery_key", key);
 
-        fetch('/api/backup/download')
+        apiFetch('/api/backup/download')
         .then(res => res.json())
         .then(data => {
           localStorage.setItem(`msync_v20_cloud_${key}`, JSON.stringify(data));
@@ -1169,7 +1194,7 @@
                 return;
               }
               
-              fetch('/api/backup/restore', {
+              apiFetch('/api/backup/restore', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(restoredState)
@@ -1238,7 +1263,7 @@
         try {
           const restoredState = JSON.parse(cloudDataStr);
           
-          fetch('/api/backup/restore', {
+          apiFetch('/api/backup/restore', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(restoredState)
@@ -1288,7 +1313,7 @@
           return;
         }
 
-        fetch(`/api/users/${userId}`, {
+        apiFetch(`/api/users/${userId}`, {
           method: 'DELETE'
         })
         .then(res => {
@@ -1313,15 +1338,39 @@
       };
 
       const handleSkipSetup = () => {
-        setCompanyName("MINESYNC Metallurgical");
-        setCompanyLogoUrl("1743631617095.png"); 
-        setCompanySupportEmail("support@minesync.com");
-        setCompanyContacts("+263-78-329-1237");
+        const payload = {
+          name: "MINESYNC Metallurgical",
+          logoUrl: "uploads/1743631617095.png",
+          supportEmail: "support@minesync.com",
+          contactDetails: "+263-78-329-1237",
+          plantGuidelines: "Our plant operates a primary Jaw Crusher that feeds Ball Mill 2. If Ball Mill 2 is down, the entire flotation circuit is halted. Boiler makers must clear structural frame cracks within 4 hours, and fitters must resolve pulley outages within 2 hours. Spares must always be kept above 2 units."
+        };
 
-        localStorage.setItem("msync_v20_device_registered", "true");
-        localStorage.setItem("msync_v20_installed", "true");
-        setShowDeviceSetup(false);
-        triggerNotification("Plant Parameters Saved", `Handover config skipped. Using pre-seeded details.`, "System");
+        apiFetch('/api/companies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        .then(res => {
+          // Whether it was newly registered or already existed on server, we link device
+          setCompanyName("MINESYNC Metallurgical");
+          setCompanyLogoUrl("uploads/1743631617095.png");
+          setCompanySupportEmail("support@minesync.com");
+          setCompanyContacts("+263-78-329-1237");
+          setSelectedLoginCompany("MINESYNC Metallurgical");
+
+          localStorage.setItem("msync_v20_company_name", "MINESYNC Metallurgical");
+          localStorage.setItem("msync_v20_device_registered", "true");
+          
+          setWelcomePopupCompany("MINESYNC Metallurgical");
+          setShowDeviceSetup(false);
+          triggerNotification("Default Company Established", "Linked to MINESYNC Metallurgical.", "System");
+          
+          fetchRegisteredCompanies();
+        })
+        .catch(err => {
+          console.error(err);
+        });
       };
 
       const handleRegisterNewDeviceCompany = (e) => {
@@ -1337,13 +1386,19 @@
           plantGuidelines: plantGuidelines
         };
 
-        fetch('/api/companies', {
+        apiFetch('/api/companies', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
         .then(res => {
-          if (!res.ok) throw new Error("Could not register company. It might already exist.");
+          if (!res.ok) {
+            return res.json().then(data => {
+              throw new Error(data.error || "Could not register company.");
+            }).catch(() => {
+              throw new Error("Could not register company. Connection failed.");
+            });
+          }
           return res.json();
         })
         .then(comp => {
@@ -1361,6 +1416,22 @@
           fetchRegisteredCompanies();
         })
         .catch(err => {
+          // If the company name is already registered, let's offer them to connect directly!
+          if (err.message.toLowerCase().includes("already registered") || err.message.toLowerCase().includes("already exist")) {
+            const connect = confirm(`⚠️ Note: "${targetName}" is already registered in our database!\n\nWould you like to connect this device workstation directly to this existing company database node instead?`);
+            if (connect) {
+              setCompanyName(targetName);
+              setSelectedLoginCompany(targetName);
+              
+              localStorage.setItem("msync_v20_company_name", targetName);
+              localStorage.setItem("msync_v20_device_registered", "true");
+              
+              setWelcomePopupCompany(targetName);
+              setShowDeviceSetup(false);
+              triggerNotification("Device Linked", `Connected workstation to existing ${targetName} database.`, "System");
+              return;
+            }
+          }
           alert("Error: " + err.message);
         });
       };
@@ -1442,7 +1513,7 @@
           profileImg: profileImg
         };
 
-        fetch(`/api/users/${currentUser.id}?company=${encodeURIComponent(companyName)}`, {
+        apiFetch(`/api/users/${currentUser.id}?company=${encodeURIComponent(companyName)}`, {
           method: 'PUT',
           headers: { 
             'Content-Type': 'application/json',
@@ -1677,7 +1748,7 @@
           return;
         }
 
-        fetch('/api/auth/ops-recovery-reset', {
+        apiFetch('/api/auth/ops-recovery-reset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1916,7 +1987,7 @@
 
       const handleSaveSMTPSettings = (e) => {
         e.preventDefault();
-        fetch('/api/company', {
+        apiFetch('/api/company', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -3462,7 +3533,7 @@
                           <form onSubmit={(e) => {
                             e.preventDefault();
                             // Save Groq API Key to server company profile
-                            fetch('/api/company', {
+                            apiFetch('/api/company', {
                               method: 'PUT',
                               headers: {
                                 'Content-Type': 'application/json',
@@ -4923,5 +4994,6 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2730b2778974ebf',t:'MTc4NjA3MTc1Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f"}' crossorigin="anonymous"></script>
 </body>
 </html>

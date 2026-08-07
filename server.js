@@ -16,12 +16,12 @@ app.use(express.static(path.join(__dirname)));
 // --- SEED INITIAL DB STATE IF NOT EXISTS (PRISTINE EMPTY FOR LAUNCH) ---
 const seedData = {
   company: {
-    name: "MINESYNC Metallurgical",
-    logoUrl: "uploads/1743631617095.png", // Default pre-seeded logo
-    supportEmail: "support@minesync.com",
-    contactDetails: "+263-78-329-1237",
-    plantGuidelines: "Our plant operates a primary Jaw Crusher that feeds Ball Mill 2. If Ball Mill 2 is down, the entire flotation circuit is halted. Boiler makers must clear structural frame cracks within 4 hours, and fitters must resolve pulley outages within 2 hours. Spares must always be kept above 2 units.",
-    groqApiKey: "", // Securely configurable via Admin console
+    name: "",
+    logoUrl: "",
+    supportEmail: "",
+    contactDetails: "",
+    plantGuidelines: "",
+    groqApiKey: "",
     smtp: {
       host: "",
       port: "587",
@@ -30,18 +30,8 @@ const seedData = {
       from: ""
     }
   },
-  assets: [
-    { id: "AST-101", name: "Ball Mill 2", location: "Milling Area", criticality: "High", serial: "BM-1024" },
-    { id: "AST-102", name: "Jaw Crusher 1", location: "Primary Crushing", criticality: "High", serial: "JC-0899" },
-    { id: "AST-103", name: "Flotation Cell 5", location: "Concentration Flank", criticality: "Medium", serial: "FC-0453" },
-    { id: "AST-104", name: "Thickener Tank 3", location: "Dewatering Section", criticality: "Low", serial: "TK-0221" }
-  ],
-  inventory: [
-    { name: "Mill Liners", quantity: 5, cost: 1200 },
-    { name: "Crusher Jaws", quantity: 0, cost: 2500 },
-    { name: "Impeller Shafts", quantity: 2, cost: 450 },
-    { name: "Electric Contactors", quantity: 15, cost: 85 }
-  ],
+  assets: [],
+  inventory: [],
   users: [], 
   admins: [], 
   management: [], 
@@ -72,27 +62,24 @@ const seedData = {
 function readDB() {
   if (!fs.existsSync(DB_FILE)) {
     const initialDB = {
-      companies: {
-        "MINESYNC Metallurgical": {
-          company: seedData.company,
-          assets: seedData.assets,
-          inventory: seedData.inventory,
-          users: seedData.users,
-          admins: seedData.admins,
-          management: seedData.management,
-          workOrders: seedData.workOrders,
-          chats: seedData.chats,
-          shortages: seedData.shortages,
-          suggestions: seedData.suggestions,
-          emails: seedData.emails
-        }
-      }
+      companies: {} // Start completely empty! No preloaded default companies!
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialDB, null, 2));
     return initialDB;
   }
   const raw = fs.readFileSync(DB_FILE);
-  return JSON.parse(raw);
+  let parsed = JSON.parse(raw);
+
+  // RESILIENT LEGACY SCHEMA MIGRATOR
+  if (!parsed.companies) {
+    console.log("[LEGACY UPGRADER] Upgrading legacy database schema to multi-tenant...");
+    const upgradedDB = {
+      companies: {}
+    };
+    writeDB(upgradedDB);
+    return upgradedDB;
+  }
+  return parsed;
 }
 
 function writeDB(data) {
@@ -101,9 +88,9 @@ function writeDB(data) {
 
 // Helper to get company's partitioned sandbox from DB
 function getCompanyData(req, res, db) {
-  const companyName = req.headers['x-company-name'] || req.query.company || "MINESYNC Metallurgical";
-  if (!db.companies[companyName]) {
-    res.status(404).json({ error: `No such company "${companyName}" exists in the system database.` });
+  const companyName = req.headers['x-company-name'] || req.query.company;
+  if (!companyName || !db.companies[companyName]) {
+    res.status(404).json({ error: `No such company "${companyName || 'unspecified'}" exists in the system database.` });
     return null;
   }
   return db.companies[companyName];
@@ -142,12 +129,12 @@ async function callGroqAI(apiKey, systemPrompt, userPrompt) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: "llama3-8b-8192", // high speed, high accuracy model for industrial diagnostics
+      model: "llama3-8b-8192", 
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      temperature: 0.2, // conservative, logical, engineering-based outputs
+      temperature: 0.2,
       max_tokens: 1000
     })
   });
@@ -192,15 +179,15 @@ app.post('/api/companies', (req, res) => {
   db.companies[cleanName] = {
     company: {
       name: cleanName,
-      logoUrl: logoUrl || "uploads/1743631617095.png",
-      supportEmail: supportEmail || "support@minesync.com",
-      contactDetails: contactDetails || "+263-78-329-1237",
-      plantGuidelines: plantGuidelines || seedData.company.plantGuidelines,
+      logoUrl: logoUrl || "",
+      supportEmail: supportEmail || "",
+      contactDetails: contactDetails || "",
+      plantGuidelines: plantGuidelines || "",
       groqApiKey: "",
       smtp: { host: "", port: "587", user: "", pass: "", from: "" }
     },
-    assets: [...seedData.assets],
-    inventory: [...seedData.inventory],
+    assets: [], // Pristine assets - empty on registration!
+    inventory: [], // Pristine inventory - empty on registration!
     users: [],
     admins: [],
     management: [],
@@ -506,7 +493,6 @@ app.post('/api/ai/analyze', async (req, res) => {
   const compData = getCompanyData(req, res, db);
   if (!compData) return;
 
-  // Retrieve key dynamically (sandbox database config vs server environment variable)
   const apiKey = compData.company.groqApiKey || process.env.GROQ_API_KEY;
   if (!apiKey) {
     return res.status(400).json({ error: "BT AI is currently on standby: Please save your Groq API Key in the Admin console Settings to activate." });
