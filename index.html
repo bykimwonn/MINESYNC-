@@ -234,6 +234,10 @@
       const [typedRecoveryCompany, setTypedRecoveryCompany] = useState("");
       const [selectedLoginCompany, setSelectedLoginCompany] = useState("");
       const [restoreCloudKeyInput, setRestoreCloudKeyInput] = useState("");
+      const [groqApiKey, setGroqApiKey] = useState(() => localStorage.getItem("msync_v20_groq_api_key") || "");
+      const [btaiAnalystReport, setBtaiAnalystReport] = useState("");
+      const [loadingAiReport, setLoadingAiReport] = useState(false);
+      const [loadingBtaiDirective, setLoadingBtaiDirective] = useState(false);
       const [backupScheduleDate, setBackupScheduleDate] = useState(() => localStorage.getItem("msync_v20_backup_schedule_date") || "Every Sunday at 00:00");
       
       const [knownCompanies, setKnownCompanies] = useState(() => {
@@ -248,6 +252,30 @@
 
       // Profile settings dialog states
       const [showProfileModal, setShowProfileModal] = useState(false);
+      const [registeredCompanies, setRegisteredCompanies] = useState([]);
+      const [welcomePopupCompany, setWelcomePopupCompany] = useState("");
+
+      const fetchRegisteredCompanies = () => {
+        fetch('/api/companies')
+        .then(res => res.json())
+        .then(data => {
+          setRegisteredCompanies(data);
+          const names = data.map(c => c.name);
+          setKnownCompanies(names);
+        })
+        .catch(err => console.error("Could not fetch companies:", err));
+      };
+
+      useEffect(() => {
+        fetchRegisteredCompanies();
+      }, []);
+
+      useEffect(() => {
+        if (welcomePopupCompany) {
+          const t = setTimeout(() => setWelcomePopupCompany(""), 6000);
+          return () => clearTimeout(t);
+        }
+      }, [welcomePopupCompany]);
       const [profileDob, setProfileDob] = useState("");
       const [profileAddress, setProfileAddress] = useState("");
       const [profilePhone, setProfilePhone] = useState("");
@@ -648,37 +676,183 @@
         }
       };
 
-      // Transmitter Radio Chat handler
+      // --- BT AI ACTION DISPATCH HANDLERS (GROQ COMPLETIONS) ---
+      const triggerBtaiAnalystReview = () => {
+        setLoadingAiReport(true);
+        const activeCount = workOrders.filter(w => w.status !== "Completed").length;
+        const completedCount = workOrders.filter(w => w.status === "Completed").length;
+        const sparesCount = shortages.length;
+        const mttr = getMTTR();
+
+        fetch('/api/ai/analyze', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Company-Name': companyName
+          },
+          body: JSON.stringify({
+            contextType: "ai_analyst_report",
+            jobContext: { activeCount, completedCount, sparesCount, mttr }
+          })
+        })
+        .then(res => {
+          if (!res.ok) {
+            return res.json().then(d => { throw new Error(d.error || "BT AI Offline"); });
+          }
+          return res.json();
+        })
+        .then(data => {
+          setBtaiAnalystReport(data.text);
+          setLoadingAiReport(false);
+          triggerNotification("BT AI Analysis Ready", "Completed high-fidelity compliance review of plant nodes.", "AI Analyst");
+        })
+        .catch(err => {
+          console.error(err);
+          setLoadingAiReport(false);
+          alert("BT AI Standby Fallback: To power active LLM reviews, enter your Groq API Key in the Settings panel.");
+          setBtaiAnalystReport("");
+        });
+      };
+
+      const handleFetchBtaiSafetyDirectives = (woId) => {
+        const targetWo = workOrders.find(w => w.id === woId);
+        if (!targetWo) return;
+
+        setLoadingBtaiDirective(true);
+        fetch('/api/ai/analyze', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Company-Name': companyName
+          },
+          body: JSON.stringify({
+            contextType: "safety_directives",
+            jobContext: {
+              title: targetWo.title,
+              assetName: targetWo.assetName,
+              criticality: targetWo.criticality,
+              serial: targetWo.serial,
+              description: targetWo.description
+            }
+          })
+        })
+        .then(res => {
+          if (!res.ok) {
+            return res.json().then(d => { throw new Error(d.error || "BT AI Offline"); });
+          }
+          return res.json();
+        })
+        .then(data => {
+          setMgmtDirectiveInput(data.text);
+          setLoadingBtaiDirective(false);
+          triggerNotification("BT AI Directives Ready", "Generated expert safety instructions for this work order.", "BT AI");
+        })
+        .catch(err => {
+          alert("BT AI Notice: " + err.message);
+          setLoadingBtaiDirective(false);
+        });
+      };
+
+      // Transmitter Radio Chat handler with BT AI support
       const handleSendDirectChat = (e) => {
         e.preventDefault();
         if (!typedChatMsg.trim()) return;
 
         const senderName = currentUser ? currentUser.name : "Foreman";
         const receiverName = currentUser?.role === "Foreman" ? "Artisans" : "Foreman";
-        
+        const textVal = typedChatMsg.trim();
+
         const newChat = {
           id: Date.now(),
           sender: senderName,
           receiver: receiverName,
-          text: typedChatMsg.trim(),
+          text: textVal,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
+        setPartTypedChatMsg("");
+
         fetch('/api/chats', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Company-Name': companyName
+          },
           body: JSON.stringify(newChat)
         })
         .then(res => res.json())
         .then(savedChat => {
           setChats(prev => [...prev, savedChat]);
-          setPartTypedChatMsg("");
-          triggerNotification("Radio Dispatch Sent", `Sent: "${newChat.text}"`, "Radio Chat");
+          triggerNotification("Radio Dispatch Sent", "Sent: " + newChat.text, "Radio Chat");
+
+          // Check if summoning BT AI
+          if (textVal.toLowerCase().includes("@btai") || textVal.toLowerCase().includes("ai")) {
+            const cleanQuery = textVal.replace(/@btai/gi, "").trim();
+            
+            const thinkingId = Date.now() + 1;
+            const thinkingChat = {
+              id: thinkingId,
+              sender: "🤖 BT AI (Assistant)",
+              receiver: "All Stations",
+              text: "⚡ STANDBY: BT AI is processing industrial telemetry...",
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            setChats(prev => [...prev, thinkingChat]);
+
+            fetch('/api/ai/analyze', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'X-Company-Name': companyName
+              },
+              body: JSON.stringify({
+                prompt: cleanQuery,
+                contextType: "radio_chat"
+              })
+            })
+            .then(res => {
+              if (!res.ok) {
+                return res.json().then(d => { throw new Error(d.error || "BT AI standby mode"); });
+              }
+              return res.json();
+            })
+            .then(data => {
+              const aiChat = {
+                id: Date.now() + 2,
+                sender: "🤖 BT AI (Assistant)",
+                receiver: senderName,
+                text: data.text,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              };
+
+              fetch('/api/chats', {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'X-Company-Name': companyName
+                },
+                body: JSON.stringify(aiChat)
+              })
+              .then(r => r.json())
+              .then(savedAiChat => {
+                setChats(prev => prev.filter(c => c.id !== thinkingId).concat(savedAiChat));
+              });
+            })
+            .catch(err => {
+              const errorChat = {
+                id: thinkingId,
+                sender: "🤖 BT AI (Assistant)",
+                receiver: senderName,
+                text: "⚠️ STANDBY Fallback: BT AI is offline. (Configure Groq API Key in Admin Settings to activate).",
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              };
+              setChats(prev => prev.filter(c => c.id !== thinkingId).concat(errorChat));
+            });
+          }
         })
         .catch(err => {
           console.error("Chat error:", err);
           setChats(prev => [...prev, newChat]);
-          setPartTypedChatMsg("");
         });
       };
 
@@ -821,6 +995,46 @@
         }
       }, [showDeviceSetup, companyName]);
 
+      // Dynamic Multi-Tenant State Sync from Express Server
+      useEffect(() => {
+        if (showDeviceSetup || !companyName) return;
+        
+        fetch('/api/state?company=' + encodeURIComponent(companyName))
+        .then(res => {
+          if (!res.ok) throw new Error("No such company exists");
+          return res.json();
+        })
+        .then(data => {
+          if (data.assets) setAssets(data.assets);
+          if (data.inventory) setInventory(data.inventory);
+          if (data.users) setUsers(data.users);
+          if (data.admins) setAdmins(data.admins);
+          if (data.management) setManagement(data.management);
+          if (data.workOrders) setWorkOrders(data.workOrders);
+          if (data.chats) setChats(data.chats);
+          if (data.shortages) setShortages(data.shortages);
+          if (data.suggestions) setSuggestions(data.suggestions);
+          
+          if (data.company) {
+            setCompanyName(data.company.name);
+            setCompanyLogoUrl(data.company.logoUrl);
+            setCompanySupportEmail(data.company.supportEmail);
+            setCompanyContacts(data.company.contactDetails);
+            setPlantGuidelines(data.company.plantGuidelines);
+            if (data.company.smtp) {
+              setSmtpHost(data.company.smtp.host || "");
+              setSmtpPort(data.company.smtp.port || "587");
+              setSmtpUser(data.company.smtp.user || "");
+              setSmtpPass(data.company.smtp.pass || "");
+              setSmtpFrom(data.company.smtp.from || "");
+            }
+          }
+        })
+        .catch(err => {
+          console.error("Could not sync multi-tenant server state:", err);
+        });
+      }, [companyName, showDeviceSetup]);
+
       // Sync variables to local storage
       useEffect(() => {
         localStorage.setItem("msync_v20_assets", JSON.stringify(assets));
@@ -842,9 +1056,10 @@
         localStorage.setItem("msync_v20_smtp_user", smtpUser);
         localStorage.setItem("msync_v20_smtp_pass", smtpPass);
         localStorage.setItem("msync_v20_smtp_from", smtpFrom);
+        localStorage.setItem("msync_v20_groq_api_key", groqApiKey);
         localStorage.setItem("msync_v20_known_companies", JSON.stringify(knownCompanies));
         localStorage.setItem("msync_v20_failed_attempts", JSON.stringify(failedAttempts));
-      }, [assets, inventory, users, workOrders, suggestions, shortages, admins, management, chats, companyName, companyLogoUrl, companySupportEmail, companyContacts, plantGuidelines, smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, knownCompanies, failedAttempts]);
+      }, [assets, inventory, users, workOrders, suggestions, shortages, admins, management, chats, companyName, companyLogoUrl, companySupportEmail, companyContacts, plantGuidelines, smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, knownCompanies, failedAttempts, groqApiKey]);
 
       // Populates edit profile values upon login
       useEffect(() => {
@@ -1111,20 +1326,43 @@
 
       const handleRegisterNewDeviceCompany = (e) => {
         e.preventDefault();
-        if (!typedRecoveryCompany.trim()) return;
-
         const targetName = typedRecoveryCompany.trim();
-        setCompanyName(targetName);
-        setCompanyLogoUrl("1743631617095.png");
+        if (!targetName) return;
 
-        if (!knownCompanies.includes(targetName)) {
-          setKnownCompanies([...knownCompanies, targetName]);
-        }
+        const payload = {
+          name: targetName,
+          logoUrl: companyLogoUrl || "uploads/1743631617095.png",
+          supportEmail: companySupportEmail,
+          contactDetails: companyContacts,
+          plantGuidelines: plantGuidelines
+        };
 
-        localStorage.setItem("msync_v20_device_registered", "true");
-        localStorage.setItem("msync_v20_installed", "true");
-        setShowDeviceSetup(false);
-        triggerNotification("Device Authenticated", `Connected to ${targetName} database. Skip setup prompts on next logs.`, "System");
+        fetch('/api/companies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        .then(res => {
+          if (!res.ok) throw new Error("Could not register company. It might already exist.");
+          return res.json();
+        })
+        .then(comp => {
+          setCompanyName(comp.name);
+          setCompanyLogoUrl(comp.logoUrl);
+          setSelectedLoginCompany(comp.name);
+          
+          localStorage.setItem("msync_v20_company_name", comp.name);
+          localStorage.setItem("msync_v20_device_registered", "true");
+          
+          setWelcomePopupCompany(comp.name);
+          setShowDeviceSetup(false);
+          triggerNotification("Company Established", `Registered ${comp.name} node successfully.`, "System");
+          
+          fetchRegisteredCompanies();
+        })
+        .catch(err => {
+          alert("Error: " + err.message);
+        });
       };
 
       const handleAutocompleteCompanyType = (val) => {
@@ -1191,6 +1429,48 @@
       };
 
       // --- FIRST-TIME USER PASSWORD REGISTER ---
+      const handleSaveProfile = (e) => {
+        if (e) e.preventDefault();
+        if (!currentUser) return;
+
+        const payload = {
+          dob: profileDob,
+          address: profileAddress,
+          whatsapp: profilePhone,
+          emergencyName: profileEmergencyName,
+          emergencyPhone: profileEmergencyPhone,
+          profileImg: profileImg
+        };
+
+        fetch(`/api/users/${currentUser.id}?company=${encodeURIComponent(companyName)}`, {
+          method: 'PUT',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Company-Name': companyName
+          },
+          body: JSON.stringify(payload)
+        })
+        .then(res => {
+          if (!res.ok) throw new Error("Profile save failed.");
+          return res.json();
+        })
+        .then(updatedUser => {
+          const refreshedUser = { ...currentUser, ...updatedUser };
+          setCurrentUser(refreshedUser);
+          setUsers(prev => prev.map(u => u.id === currentUser.id ? refreshedUser : u));
+          setShowProfileModal(false);
+          triggerNotification("Profile Configured", "Your information has been securely updated inside the company database.", "System");
+        })
+        .catch(err => {
+          console.error(err);
+          const refreshedUser = { ...currentUser, ...payload };
+          setCurrentUser(refreshedUser);
+          setUsers(prev => prev.map(u => u.id === currentUser.id ? refreshedUser : u));
+          setShowProfileModal(false);
+          triggerNotification("Profile Updated (Local)", "Information saved.", "System");
+        });
+      };
+
       const handleFirstLoginSetup = (e) => {
         e.preventDefault();
         if (artisanNewPassword.length < 5) {
@@ -1704,79 +1984,232 @@
       return (
         <div class="min-h-screen flex flex-col justify-between">
           
+          {/* WELCOME FLOATING POPUP */}
+          {welcomePopupCompany && (
+            <div class="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] bg-slate-950 border-2 border-brand-orange text-white px-6 py-4 rounded-2xl shadow-[0_0_30px_rgba(255,107,0,0.3)] flex items-center gap-3 animate-bounce font-mono text-xs">
+              <span class="text-2xl animate-pulse">🏢</span>
+              <div>
+                <span class="text-brand-orange font-bold font-sans text-sm block">Welcome to ${welcomePopupCompany}!</span>
+                <span class="text-[10px] text-slate-400">Secure Industrial Node Active. Please enter credentials.</span>
+              </div>
+              <button 
+                onClick={() => setWelcomePopupCompany("")}
+                class="ml-4 text-slate-500 hover:text-white text-sm"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* PROFILE EDIT MODAL */}
+          {showProfileModal && (
+            <div class="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-duration-300">
+              <div class="max-w-md w-full bg-brand-cardBg border border-brand-steelBorder p-6 rounded-2xl shadow-2xl text-left space-y-4 font-mono text-xs relative">
+                <button 
+                  onClick={() => setShowProfileModal(false)}
+                  class="absolute top-4 right-4 text-slate-500 hover:text-white text-base"
+                >
+                  ✕
+                </button>
+                
+                <div class="text-center pb-2 border-b border-brand-steelBorder/60">
+                  <span class="text-2xl">⚙️</span>
+                  <h3 class="text-lg font-bold uppercase text-white brand-font mt-1">Configure User Information</h3>
+                  <p class="text-[10px] text-brand-steelText mt-0.5 uppercase">Profile details will be committed to ${companyName}</p>
+                </div>
+
+                <form onSubmit={handleSaveProfile} class="space-y-4">
+                  <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-full border border-brand-steelBorder bg-slate-900 flex items-center justify-center overflow-hidden">
+                      {profileImg ? (
+                        <img src={profileImg} alt="Avatar" class="w-full h-full object-cover" />
+                      ) : (
+                        <span class="text-xl">👤</span>
+                      )}
+                    </div>
+                    <div class="flex-grow">
+                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Profile Picture</label>
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setProfileImg(reader.result);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        class="w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-brand-steelBorder file:text-[10px] file:font-bold file:bg-slate-900 file:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Date of Birth (DOB)</label>
+                    <input 
+                      type="date" 
+                      required
+                      value={profileDob}
+                      onChange={(e) => setProfileDob(e.target.value)}
+                      class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white text-xs font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Residential House Address</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="e.g. Stand 2410, Metallurgical Flats, Harare"
+                      value={profileAddress}
+                      onChange={(e) => setProfileAddress(e.target.value)}
+                      class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white text-xs font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">WhatsApp / Contact Phone</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="e.g. +263-78-329-1237"
+                      value={profilePhone}
+                      onChange={(e) => setProfilePhone(e.target.value)}
+                      class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white text-xs font-mono"
+                    />
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Emergency Contact Name</label>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="Next of Kin Name"
+                        value={profileEmergencyName}
+                        onChange={(e) => setProfileEmergencyName(e.target.value)}
+                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white text-xs font-sans"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Emergency Phone</label>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="Next of Kin Phone"
+                        value={profileEmergencyPhone}
+                        onChange={(e) => setProfileEmergencyPhone(e.target.value)}
+                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="pt-2 flex gap-2">
+                    <button 
+                      type="submit" 
+                      class="flex-grow py-2.5 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded text-xs font-sans font-bold"
+                    >
+                      💾 Save Profile Details
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowProfileModal(false)}
+                      class="px-4 py-2.5 bg-slate-900 border border-brand-steelBorder text-slate-300 rounded text-xs uppercase"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+
+          
           {/* --- FIRST-TIME DEVICE DETECTION ONBOARDING LANDING --- */}
           {showDeviceSetup && (
             <div class="fixed inset-0 z-50 bg-[#060911] flex items-center justify-center p-6 text-center overflow-y-auto font-sans text-xs">
-              <div class="max-w-xl w-full bg-brand-cardBg border-2 border-brand-orange rounded-2xl p-8 shadow-2xl space-y-6 text-left relative">
+              <div class="max-w-2xl w-full bg-slate-950 border-2 border-brand-orange/60 rounded-3xl p-8 shadow-[0_0_50px_rgba(255,107,0,0.15)] space-y-6 text-left relative">
                 
                 {setupStateStep !== "NEW_OR_RETURNING" && (
                   <button 
                     onClick={() => setSetupStateStep("NEW_OR_RETURNING")} 
-                    class="absolute top-4 left-4 text-xs font-mono text-brand-steelText hover:text-white"
+                    class="absolute top-6 left-6 text-xs font-mono text-brand-steelText hover:text-white flex items-center gap-1 font-bold"
                   >
-                    &larr; Go Back
+                    &larr; Return to Central Gateway
                   </button>
                 )}
 
-                <div class="w-16 h-16 bg-brand-orange/10 border border-brand-orange rounded-full flex items-center justify-center mx-auto text-3xl">
-                  ⚙️
-                </div>
-                
-                <div class="text-center">
-                  <h1 class="text-3xl font-extrabold tracking-widest text-white brand-font uppercase">
-                    MINESYNC INITIALIZATION
+                <div class="flex flex-col items-center justify-center text-center">
+                  <div class="w-16 h-16 bg-brand-orange/10 border-2 border-brand-orange rounded-2xl flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(255,107,0,0.2)] animate-pulse">
+                    ⚡
+                  </div>
+                  <h1 class="text-3xl font-black tracking-widest text-white mt-4 brand-font uppercase">
+                    MINESYNC OPERATIONS GATEWAY
                   </h1>
-                  <p class="text-xs text-brand-steelText mt-1 font-mono font-bold">DEVICE ONBOARDING GATEWAY</p>
+                  <p class="text-[10px] text-brand-orange font-mono font-bold tracking-widest uppercase">Plant Handover & Device Binding Matrix</p>
                 </div>
 
                 {setupStateStep === "NEW_OR_RETURNING" && (
                   <div class="space-y-6">
-                    <p class="text-xs text-slate-300 leading-relaxed text-center font-sans">
-                      Welcome to <strong>MINESYNC</strong>. To configure your workstation device, please select your organizational setup channel below:
+                    <p class="text-xs text-slate-400 leading-relaxed text-center font-sans">
+                      Device binding required. To link this workstation terminal, select your organization channel below:
                     </p>
                     
-                    <div class="grid grid-cols-1 gap-4 font-mono">
-                      {/* Option A: New Company */}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono">
+                      
+                      {/* Option A: Setup New Organisation */}
                       <button 
-                        onClick={() => setSetupStateStep("NEW_COMPANY_FORM")}
-                        class="p-4 bg-slate-900/60 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-xl text-left transition-all group"
+                        onClick={() => {
+                          setTypedRecoveryCompany("");
+                          setSetupStateStep("NEW_COMPANY_FORM");
+                        }}
+                        class="p-5 bg-slate-900/40 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-2xl text-left transition-all group flex flex-col justify-between h-48 shadow-lg hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
                       >
-                        <div class="flex items-center justify-between">
-                          <span class="text-sm font-bold text-white uppercase font-sans">🆕 Setup New Organisation</span>
-                          <span class="text-brand-orange group-hover:translate-x-1 transition-transform">&rarr;</span>
+                        <div>
+                          <div class="w-10 h-10 bg-brand-orange/10 border border-brand-orange/30 rounded-xl flex items-center justify-center text-xl mb-3">🆕</div>
+                          <span class="text-xs font-bold text-white uppercase font-sans tracking-wide">New Organisation</span>
+                          <p class="text-[10px] text-brand-steelText mt-1 font-sans leading-relaxed">
+                            Initialize a clean database node. Setup company contacts, logo, and system owner console.
+                          </p>
                         </div>
-                        <p class="text-[11px] text-brand-steelText mt-1 font-sans leading-normal">
-                          Initialize a fresh plant profile, configure the metallurgical guidelines, and establish the system Owner console.
-                        </p>
+                        <span class="text-brand-orange font-bold text-[10px] uppercase font-mono group-hover:translate-x-1 transition-transform mt-3">Configure &rarr;</span>
                       </button>
 
-                      {/* Option B: Returning Company */}
+                      {/* Option B: Link Returning Organisation */}
                       <button 
-                        onClick={() => setSetupStateStep("RETURNING_COMPANY_FORM")}
-                        class="p-4 bg-slate-900/60 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-xl text-left transition-all group"
+                        onClick={() => {
+                          fetchRegisteredCompanies();
+                          setSetupStateStep("RETURNING_COMPANY_FORM");
+                        }}
+                        class="p-5 bg-slate-900/40 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-2xl text-left transition-all group flex flex-col justify-between h-48 shadow-lg hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
                       >
-                        <div class="flex items-center justify-between">
-                          <span class="text-sm font-bold text-white uppercase font-sans">🏢 Returning Organisation</span>
-                          <span class="text-brand-orange group-hover:translate-x-1 transition-transform">&rarr;</span>
+                        <div>
+                          <div class="w-10 h-10 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-center text-xl mb-3">🏢</div>
+                          <span class="text-xs font-bold text-white uppercase font-sans tracking-wide">Returning Company</span>
+                          <p class="text-[10px] text-brand-steelText mt-1 font-sans leading-relaxed">
+                            Already registered? Instantly bind this workstation to your existing company node.
+                          </p>
                         </div>
-                        <p class="text-[11px] text-brand-steelText mt-1 font-sans leading-normal">
-                          For already registered companies. Type your Company Name to link this device and skip onboarding forever.
-                        </p>
+                        <span class="text-brand-orange font-bold text-[10px] uppercase font-mono group-hover:translate-x-1 transition-transform mt-3">Link Node &rarr;</span>
                       </button>
 
                       {/* Option C: Restore Database */}
                       <button 
                         onClick={() => setSetupStateStep("RESTORE_BACKUP_ONBOARDING")}
-                        class="p-4 bg-slate-900/60 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-xl text-left transition-all group"
+                        class="p-5 bg-slate-900/40 hover:bg-brand-orange/10 border border-brand-steelBorder hover:border-brand-orange rounded-2xl text-left transition-all group flex flex-col justify-between h-48 shadow-lg hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
                       >
-                        <div class="flex items-center justify-between">
-                          <span class="text-sm font-bold text-white uppercase font-sans">🔄 Restore System Backup</span>
-                          <span class="text-brand-orange group-hover:translate-x-1 transition-transform">&rarr;</span>
+                        <div>
+                          <div class="w-10 h-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center text-xl mb-3">🔄</div>
+                          <span class="text-xs font-bold text-white uppercase font-sans tracking-wide">Restore State</span>
+                          <p class="text-[10px] text-brand-steelText mt-1 font-sans leading-relaxed">
+                            Recover complete data from a local JSON backup file or secure Cloud Recovery Key.
+                          </p>
                         </div>
-                        <p class="text-[11px] text-brand-steelText mt-1 font-sans leading-normal">
-                          Upload a local <code>.json</code> database backup file or provide a secure cloud recovery key to instantly restore system state.
-                        </p>
+                        <span class="text-brand-orange font-bold text-[10px] uppercase font-mono group-hover:translate-x-1 transition-transform mt-3">Recover &rarr;</span>
                       </button>
+
                     </div>
                   </div>
                 )}
@@ -1784,117 +2217,192 @@
                 {/* Setup New Company Form */}
                 {setupStateStep === "NEW_COMPANY_FORM" && (
                   <form onSubmit={handleRegisterNewDeviceCompany} class="space-y-4 font-mono text-xs text-left">
-                    <div>
-                      <h3 class="text-xs font-bold text-brand-orange uppercase mb-2">Create New Organisation Profile</h3>
-                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Company Name</label>
-                      <input 
-                        type="text" 
-                        required
-                        placeholder="e.g. Bongani Metals Ltd" 
-                        value={typedRecoveryCompany}
-                        onChange={(e) => handleAutocompleteCompanyType(e.target.value)}
-                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-white font-sans text-xs focus:border-brand-orange focus:outline-none"
-                      />
+                    <div class="border-b border-brand-steelBorder pb-2">
+                      <h3 class="text-sm font-bold text-brand-orange uppercase">Setup New Metallurgical Node</h3>
+                      <p class="text-[10px] text-brand-steelText mt-0.5">Initialize a fresh company database workspace partitioned securely on our cloud gateway.</p>
                     </div>
-                    <div>
-                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Support Email Address</label>
-                      <input 
-                        type="email" 
-                        required
-                        placeholder="support@minesync.com" 
-                        value={companySupportEmail}
-                        onChange={(e) => setCompanySupportEmail(e.target.value)}
-                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-white font-mono text-xs focus:border-brand-orange focus:outline-none"
-                      />
+
+                    <div class="grid grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Company Name</label>
+                        <input 
+                          type="text" 
+                          required
+                          placeholder="e.g. Bongani Metals Ltd" 
+                          value={typedRecoveryCompany}
+                          onChange={(e) => setTypedRecoveryCompany(e.target.value)}
+                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2.5 text-white font-sans text-xs focus:border-brand-orange focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Support Email Address</label>
+                        <input 
+                          type="email" 
+                          required
+                          placeholder="support@minesync.com" 
+                          value={companySupportEmail}
+                          onChange={(e) => setCompanySupportEmail(e.target.value)}
+                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2.5 text-white font-mono text-xs focus:border-brand-orange focus:outline-none"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Contact Number</label>
-                      <input 
-                        type="text" 
-                        required
-                        placeholder="+263-78-329-1237" 
-                        value={companyContacts}
-                        onChange={(e) => setCompanyContacts(e.target.value)}
-                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-white font-mono text-xs focus:border-brand-orange focus:outline-none"
-                      />
+
+                    <div class="grid grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Corporate Contact Number</label>
+                        <input 
+                          type="text" 
+                          required
+                          placeholder="+263-78-329-1237" 
+                          value={companyContacts}
+                          onChange={(e) => setCompanyContacts(e.target.value)}
+                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2.5 text-white font-mono text-xs focus:border-brand-orange focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Upload Corporate Logo Picture</label>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => setCompanyLogoUrl(reader.result);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          class="w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-brand-steelBorder file:text-[10px] file:font-bold file:bg-slate-900 file:text-white"
+                        />
+                      </div>
                     </div>
+
                     <div>
-                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Logo URL (Or File)</label>
-                      <input 
-                        type="text" 
-                        placeholder="uploads/1743631617095.png" 
-                        value={companyLogoUrl}
-                        onChange={(e) => setCompanyLogoUrl(e.target.value)}
-                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-white font-mono text-xs focus:border-brand-orange focus:outline-none"
-                      />
+                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">How our Plant Works (AI Analyst preset guidelines)</label>
+                      <textarea 
+                        value={plantGuidelines}
+                        onChange={(e) => setPlantGuidelines(e.target.value)}
+                        rows="3"
+                        placeholder="Configure primary conveyor belt speeds, Ball Mill capacities, flotation target frothing triggers..."
+                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2.5 text-white text-xs font-mono leading-relaxed focus:border-brand-orange focus:outline-none"
+                      ></textarea>
                     </div>
 
                     <div class="flex gap-4 pt-2">
-                      <button type="submit" class="flex-grow py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded text-xs font-mono">
+                      <button type="submit" class="flex-grow py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded-lg text-xs font-mono">
                         Initialize Organisation &rarr;
                       </button>
                       <button 
                         type="button" 
                         onClick={handleSkipSetup}
-                        class="px-4 py-3 bg-slate-900 border border-brand-steelBorder text-slate-300 rounded text-xs uppercase"
+                        class="px-4 py-3 bg-slate-900 border border-brand-steelBorder text-slate-300 rounded-lg text-xs uppercase"
                       >
-                        Default Config
+                        Use Defaults
                       </button>
                     </div>
                   </form>
                 )}
 
-                {/* Returning Company Form */}
+                {/* Link Returning Company Form */}
                 {setupStateStep === "RETURNING_COMPANY_FORM" && (
-                  <form onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!typedRecoveryCompany.trim()) return;
-                    setCompanyName(typedRecoveryCompany.trim());
-                    setSelectedLoginCompany(typedRecoveryCompany.trim());
-                    localStorage.setItem("msync_v20_company_name", typedRecoveryCompany.trim());
-                    localStorage.setItem("msync_v20_device_registered", "true");
-                    setShowDeviceSetup(false);
-                    triggerNotification("Device Linked", `Workstation connected to existing ${typedRecoveryCompany.trim()} database.`, "System");
-                  }} class="space-y-4 font-mono text-xs text-left">
-                    <div>
-                      <h3 class="text-xs font-bold text-brand-orange uppercase mb-2">Link Existing Company Database</h3>
-                      <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Enter Registered Company Name</label>
-                      <input 
-                        type="text" 
-                        required
-                        placeholder="e.g. Bongani Metals Ltd" 
-                        value={typedRecoveryCompany}
-                        onChange={(e) => handleAutocompleteCompanyType(e.target.value)}
-                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-white font-sans text-xs focus:border-brand-orange focus:outline-none"
-                      />
+                  <div class="space-y-4 font-mono text-xs text-left">
+                    <div class="border-b border-brand-steelBorder pb-2">
+                      <h3 class="text-sm font-bold text-brand-orange uppercase">Link Existing Company Database</h3>
+                      <p class="text-[10px] text-brand-steelText mt-0.5">Select your registered organization below to bind this device instantly. Any unknown companies are completely barred.</p>
                     </div>
 
-                    <button type="submit" class="w-full py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded text-xs font-mono">
-                      Link Workstation Device &rarr;
-                    </button>
-                  </form>
+                    {/* Direct Search / Spelling Validation */}
+                    <div class="space-y-1">
+                      <label class="block text-[10px] text-brand-steelText uppercase font-bold">Search Company Name</label>
+                      <div class="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="Type and check database..." 
+                          value={typedRecoveryCompany}
+                          onChange={(e) => setTypedRecoveryCompany(e.target.value)}
+                          class="flex-grow bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2.5 text-white font-sans text-xs focus:border-brand-orange focus:outline-none"
+                        />
+                        <button 
+                          onClick={() => {
+                            const match = registeredCompanies.find(c => c.name.toLowerCase() === typedRecoveryCompany.trim().toLowerCase());
+                            if (match) {
+                              setCompanyName(match.name);
+                              setCompanyLogoUrl(match.logoUrl);
+                              setSelectedLoginCompany(match.name);
+                              localStorage.setItem("msync_v20_company_name", match.name);
+                              localStorage.setItem("msync_v20_device_registered", "true");
+                              
+                              setWelcomePopupCompany(match.name);
+                              setShowDeviceSetup(false);
+                            } else {
+                              alert("❌ Error: No such company exists in the system database. Please check your spelling or register a new organisation.");
+                            }
+                          }}
+                          class="px-4 py-2.5 bg-brand-orange text-white rounded-lg font-bold text-xs"
+                        >
+                          Check & Link
+                        </button>
+                      </div>
+                    </div>
+
+                    <p class="text-[10px] text-brand-steelText uppercase font-bold pt-2">Database Directory Nodes ({registeredCompanies.length})</p>
+                    <div class="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-1">
+                      {registeredCompanies.length === 0 ? (
+                        <p class="text-xs text-brand-steelText font-mono p-4 bg-slate-900 rounded-lg text-center col-span-2">
+                          No active company databases found on server. Please select Option A to register a new company profile first.
+                        </p>
+                      ) : (
+                        registeredCompanies.map((comp, idx) => (
+                          <div 
+                            key={idx}
+                            onClick={() => {
+                              setCompanyName(comp.name);
+                              setCompanyLogoUrl(comp.logoUrl);
+                              setSelectedLoginCompany(comp.name);
+                              localStorage.setItem("msync_v20_company_name", comp.name);
+                              localStorage.setItem("msync_v20_device_registered", "true");
+                              
+                              setWelcomePopupCompany(comp.name);
+                              setShowDeviceSetup(false);
+                            }}
+                            class="p-3 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange rounded-xl flex items-center gap-3 cursor-pointer transition-all hover:bg-brand-orange/5"
+                          >
+                            <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center p-1 border border-brand-steelBorder flex-shrink-0">
+                              <img src={comp.logoUrl} alt="Logo" class="max-h-full max-w-full object-contain" />
+                            </div>
+                            <div class="overflow-hidden">
+                              <span class="text-xs font-bold text-white block truncate">{comp.name}</span>
+                              <span class="text-[9px] text-slate-400 block truncate">{comp.supportEmail}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 )}
 
                 {/* Restore Backup Onboarding Form */}
                 {setupStateStep === "RESTORE_BACKUP_ONBOARDING" && (
                   <div class="space-y-4 font-mono text-xs text-left">
-                    <h3 class="text-xs font-bold text-brand-orange uppercase mb-1">Restore Plant Database State</h3>
-                    <p class="text-[10px] text-brand-steelText leading-normal font-sans mb-3">Load your historical database to configure your workspace instantly.</p>
+                    <div class="border-b border-brand-steelBorder pb-2">
+                      <h3 class="text-xs font-bold text-brand-orange uppercase">Restore Plant Database State</h3>
+                      <p class="text-[10px] text-brand-steelText mt-0.5">Load your historical database to configure your workspace instantly.</p>
+                    </div>
                     
                     <div class="space-y-4">
                       {/* Method A: Local File */}
-                      <div class="p-3 bg-slate-900 border border-brand-steelBorder rounded space-y-2">
+                      <div class="p-4 bg-slate-900/60 border border-brand-steelBorder rounded-xl space-y-2">
                         <span class="block text-[10px] text-white uppercase font-sans font-bold">Method A: Upload backup .json file</span>
                         <input 
                           type="file" 
                           accept=".json"
                           onChange={handleLocalRestoreUpload}
-                          class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-brand-steelBorder file:text-[10px] file:font-bold file:bg-slate-900 file:text-white"
+                          class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border file:border-brand-steelBorder file:text-[10px] file:font-bold file:bg-slate-950 file:text-white"
                         />
                       </div>
 
                       {/* Method B: Cloud key */}
-                      <div class="p-3 bg-slate-900 border border-brand-steelBorder rounded space-y-2">
+                      <div class="p-4 bg-slate-900/60 border border-brand-steelBorder rounded-xl space-y-2">
                         <span class="block text-[10px] text-white uppercase font-sans font-bold">Method B: Retrieve from Cloud Key</span>
                         <div class="flex gap-2">
                           <input 
@@ -1902,12 +2410,12 @@
                             placeholder="e.g. MS-RECOVERY-A8E9B3"
                             value={restoreCloudKeyInput}
                             onChange={(e) => setRestoreCloudKeyInput(e.target.value)}
-                            class="flex-grow bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white text-xs focus:outline-none focus:border-brand-orange font-mono"
+                            class="flex-grow bg-brand-darkBg border border-brand-steelBorder rounded-lg p-2 text-white text-xs focus:outline-none focus:border-brand-orange font-mono"
                           />
                           <button 
                             type="button" 
                             onClick={handleCloudRestoreExecute}
-                            class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded uppercase text-xs font-sans font-bold"
+                            class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-lg uppercase text-xs font-sans font-bold"
                           >
                             Synchronize &rarr;
                           </button>
@@ -2950,6 +3458,45 @@
                             </h3>
                           </div>
 
+                          {/* GROQ AI INTEGRATION KEY */}
+                          <form onSubmit={(e) => {
+                            e.preventDefault();
+                            // Save Groq API Key to server company profile
+                            fetch('/api/company', {
+                              method: 'PUT',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'X-Company-Name': companyName
+                              },
+                              body: JSON.stringify({ groqApiKey })
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                              triggerNotification("BT AI Configured", "Groq API Key saved successfully to server database.", "System");
+                              alert("⚡ BT AI Key committed! Groq Large Language Model operations are now active inside the direct radio chat, management reviews, and safety directive panels.");
+                            })
+                            .catch(err => {
+                              console.error(err);
+                              triggerNotification("BT AI Saved Locally", "Groq API Key cached in device history.", "System");
+                            });
+                          }} class="space-y-4 font-mono text-xs border-b border-brand-steelBorder pb-4">
+                            <h4 class="text-xs font-bold text-brand-orange uppercase mb-1">🤖 BT AI (Groq Engine) Integrations</h4>
+                            <p class="text-[10px] text-brand-steelText">Provide your Groq API Key to power the Minesync AI Analyst, generate safety instructions, and enable a live AI radio assistant!</p>
+                            <div>
+                              <label class="block text-[9px] text-brand-steelText uppercase mb-0.5">Groq API Key</label>
+                              <input 
+                                type="password" 
+                                placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxx"
+                                value={groqApiKey}
+                                onChange={(e) => setGroqApiKey(e.target.value)}
+                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white font-bold"
+                              />
+                            </div>
+                            <button type="submit" class="w-full py-2 bg-slate-900 border border-brand-orange hover:bg-brand-orange/20 text-brand-orange font-bold uppercase rounded font-bold">
+                              💾 Commit BT AI Engine Credentials
+                            </button>
+                          </form>
+
                           {/* SMTP GMAIL INTEGRATION SETTINGS */}
                           <form onSubmit={handleSaveSMTPSettings} class="space-y-4 font-mono text-xs border-b border-brand-steelBorder pb-4 animate-duration-300">
                             <h4 class="text-xs font-bold text-brand-orange uppercase mb-1">✉️ Outgoing SMTP Mail Server (e.g. Gmail)</h4>
@@ -3247,8 +3794,33 @@
                               <span class="text-[10px] bg-brand-orange/20 border border-brand-orange/40 text-brand-orange px-2 py-0.5 rounded font-bold">Heuristic Engine Active</span>
                             </h3>
 
+                            <div class="flex gap-2 mb-2">
+                              <button 
+                                onClick={triggerBtaiAnalystReview}
+                                disabled={loadingAiReport}
+                                class="px-3 py-1.5 bg-brand-orange hover:bg-brand-orangeHover text-white text-[10px] font-bold uppercase rounded font-mono flex items-center gap-1.5 disabled:opacity-50"
+                              >
+                                {loadingAiReport ? "⚡ Synthesizing..." : "🤖 Trigger BT AI LLM Review"}
+                              </button>
+                              {btaiAnalystReport && (
+                                <button 
+                                  onClick={() => setBtaiAnalystReport("")}
+                                  class="px-2 py-1.5 bg-slate-900 border border-brand-steelBorder text-slate-400 text-[10px] rounded"
+                                >
+                                  Clear LLM Report
+                                </button>
+                              )}
+                            </div>
                             <div class="p-4 bg-brand-darkBg border border-brand-steelBorder rounded-lg font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap max-h-80 overflow-y-auto">
-                              {generateAIReportSummary()}
+                              {btaiAnalystReport ? (
+                                <div>
+                                  <div class="text-[10px] bg-brand-orange/10 border border-brand-orange/30 text-brand-orange px-2 py-1 rounded mb-3 flex justify-between items-center font-bold">
+                                    <span>✨ BT AI (Llama-3 LLM Synthesis) Active</span>
+                                    <span>GROQ POWERED</span>
+                                  </div>
+                                  {btaiAnalystReport}
+                                </div>
+                              ) : generateAIReportSummary()}
                             </div>
                             <div class="text-[11px] text-brand-steelText flex items-center gap-2 font-sans font-bold">
                               <span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping text-xs"></span>
@@ -3437,13 +4009,23 @@
                                         </div>
                                         
                                         <div class="space-y-1.5 font-mono text-xs animate-duration-300">
-                                          <label class="block text-[10px] text-brand-steelText uppercase font-bold">Engineering Directive</label>
+                                          <div class="flex justify-between items-center mb-0.5">
+                                            <label class="block text-[10px] text-brand-steelText uppercase font-bold">Engineering Directive</label>
+                                            <button 
+                                              type="button"
+                                              onClick={() => handleFetchBtaiSafetyDirectives(selectedWO.id)}
+                                              disabled={loadingBtaiDirective}
+                                              class="text-[9px] text-brand-orange hover:underline font-bold"
+                                            >
+                                              {loadingBtaiDirective ? "⚡ Analyzing..." : "🤖 BT AI Safety Precautions"}
+                                            </button>
+                                          </div>
                                           <textarea 
-                                            placeholder="Write safety/regulatory directives"
+                                            placeholder="Write safety/regulatory directives, or click BT AI above to generate!"
                                             rows="2"
                                             value={mgmtDirectiveInput}
                                             onChange={(e) => setMgmtDirectiveInput(e.target.value)}
-                                            class="w-full bg-slate-950 border border-brand-steelBorder rounded p-1.5 text-white"
+                                            class="w-full bg-slate-950 border border-brand-steelBorder rounded p-1.5 text-white text-[11px]"
                                           ></textarea>
                                           <button 
                                             onClick={() => handleAddManagementDirective(selectedWO.id)}
@@ -4341,6 +4923,5 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2727f8e3d0b8df8',t:'MTc4NjA2NjA0MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f"}' crossorigin="anonymous"></script>
 </body>
 </html>
