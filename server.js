@@ -160,6 +160,21 @@ app.post('/api/users', (req, res) => {
   res.status(201).json(newUser);
 });
 
+// Delete User from database (Admin command)
+app.delete('/api/users/:id', (req, res) => {
+  const db = readDB();
+  const userId = req.params.id;
+  const initialCount = db.users.length;
+  db.users = db.users.filter(u => u.id !== userId);
+
+  if (db.users.length === initialCount) {
+    return res.status(404).json({ error: "User not found." });
+  }
+
+  writeDB(db);
+  res.json({ message: "User successfully deleted from roster." });
+});
+
 app.patch('/api/users/:id/change-password', (req, res) => {
   const { newPassword } = req.body;
   const db = readDB();
@@ -460,6 +475,21 @@ app.post('/api/chats', (req, res) => {
 app.get('/api/chats', (req, res) => {
   const db = readDB();
   res.json(db.chats);
+});
+
+// --- BACKUP & RESTORE ENDPOINTS ---
+app.get('/api/backup/download', (req, res) => {
+  const db = readDB();
+  res.json(db);
+});
+
+app.post('/api/backup/restore', (req, res) => {
+  const backupData = req.body;
+  if (!backupData || !backupData.company || !Array.isArray(backupData.assets) || !Array.isArray(backupData.users)) {
+    return res.status(400).json({ error: "Invalid backup database payload structure." });
+  }
+  writeDB(backupData);
+  res.json({ message: "Database successfully configured and restored.", company: backupData.company });
 });
 
 app.get('/', (req, res) => {
