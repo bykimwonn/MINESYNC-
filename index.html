@@ -334,6 +334,451 @@
       // Fallback state for broken logo images
       const [logoImageError, setLogoImageError] = useState(false);
 
+      // ==========================================
+      // INJECTED STATE VARIABLES & ACTION HANDLERS
+      // ==========================================
+
+      // Missing states from ESLint report
+      const [isMgmtSignup, setIsMgmtSignup] = useState(false);
+      const [plantUsername, setPlantUsername] = useState("");
+      const [plantPassword, setPlantPassword] = useState("");
+      const [mgmtPosition, setMgmtPosition] = useState("Section Engineer");
+      const [mgmtFullName, setMgmtFullName] = useState("");
+      const [mgmtPassword, setMgmtPassword] = useState("");
+      const [isBiometricScanning, setIsBiometricScanning] = useState(false);
+
+      // Foreman work order dispatch form states
+      const [jobName, setJobName] = useState("");
+      const [jobSerial, setJobSerial] = useState("");
+      const [jobWhatToDo, setJobWhatToDo] = useState("");
+      const [jobAssetId, setJobAssetId] = useState("");
+      const [jobDays, setJobDays] = useState("1");
+      const [jobPeopleCount, setJobPeopleCount] = useState("1");
+      const [jobPartRequired, setJobPartRequired] = useState("None");
+      const [jobArtisanId, setJobArtisanId] = useState("");
+
+      // Chat/radio state variables
+      const [typedChatMsg, setPartTypedChatMsg] = useState("");
+
+      // Artisan progress slider and notes states
+      const [artisanProgressVal, setArtisanProgressVal] = useState("");
+      const [artisanNotesInput, setArtisanNotesInput] = useState("");
+      const [partComplaintInput, setPartComplaintInput] = useState("");
+
+      // Profile completeness helper
+      const isProfileIncomplete = () => {
+        if (!currentUser) return false;
+        if (currentUser.role === "Foreman" || currentUser.role === "Artisan" || currentUser.role === "User") {
+          return !currentUser.dob || !currentUser.address || !currentUser.emergencyName || !currentUser.emergencyPhone;
+        }
+        return false;
+      };
+
+      // Work Orders Filtering & Role Isolation
+      const filteredWorkOrders = workOrders.filter(wo => {
+        // Planner Isolation: restricted from viewing individual work order tables or sign-off sheets
+        if (currentRole === "PLANT" && plantSubRole === "Planner") return false;
+        
+        // Artisan Isolation: can only see assigned cards
+        if (currentRole === "PLANT" && !["Section Engineer", "Operations Engineer", "Planner", "Foreman"].includes(plantSubRole)) {
+          return wo.assignedToId === currentUser.id;
+        }
+        
+        // General Search Filter
+        const query = searchQuery.toLowerCase();
+        return (
+          wo.id.toLowerCase().includes(query) ||
+          wo.title.toLowerCase().includes(query) ||
+          wo.assetName.toLowerCase().includes(query) ||
+          wo.assignedToName.toLowerCase().includes(query) ||
+          wo.status.toLowerCase().includes(query)
+        );
+      });
+
+      // Password Recovery Dispatch & Confirmation
+      const handleTriggerForgotPassword = (e) => {
+        e.preventDefault();
+        if (!forgotPasswordEmail.trim()) return;
+
+        fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: forgotPasswordEmail.trim() })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            setErrorMsg(data.error);
+          } else {
+            setRecoveryGeneratedCode(data.recoveryCode.toString());
+            setRecoveredAccountEmail(data.email);
+            setRecoveryState("SENT");
+            setErrorMsg("");
+            triggerNotification("Recovery Code Dispatched", `6-digit security code sent to actual/simulated SMTP inbox for ${data.email}.`, "Security");
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          setErrorMsg("Network/Server connection failed.");
+        });
+      };
+
+      const handleConfirmRecoveryCode = (e) => {
+        e.preventDefault();
+        if (!recoveryCodeInput.trim()) return;
+
+        if (recoveryCodeInput.trim() === generatedCode) {
+          setRecoveryState("VERIFIED");
+          setErrorMsg("");
+        } else {
+          setErrorMsg("Security Error: Mismatched recovery validation token.");
+        }
+      };
+
+      const handleCommitRecoveryPassword = (e) => {
+        e.preventDefault();
+        if (newForgotPassword.length < 5) {
+          alert("Security: Password must be at least 5 characters.");
+          return;
+        }
+
+        fetch('/api/auth/reset-password-confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: recoveredAccountEmail,
+            newPassword: newForgotPassword
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            setErrorMsg(data.error);
+          } else {
+            alert("✅ Security Reset Complete. Your account credentials have been successfully updated.");
+            setRecoveryState("NONE");
+            setForgotPasswordEmail("");
+            setRecoveryCodeInput("");
+            setNewForgotPassword("");
+            setRecoveredAccountEmail("");
+            setErrorMsg("");
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          setErrorMsg("Database commit failed.");
+        });
+      };
+
+      // Heuristic & MTTR Analytical Statistics Functions (Minesync AI Analyst)
+      const getMTTR = () => {
+        const completedWOs = workOrders.filter(w => w.status === "Completed");
+        if (completedWOs.length === 0) return "2.4 hrs";
+        const sum = completedWOs.reduce((acc, curr) => acc + (parseInt(curr.durationExpected) || 1), 0);
+        const avg = (sum / completedWOs.length) * 2;
+        return `${avg.toFixed(1)} hrs`;
+      };
+
+      const getTopFailingAssets = () => {
+        const counts = {};
+        workOrders.forEach(w => {
+          counts[w.assetName] = (counts[w.assetName] || 0) + 1;
+        });
+        const entries = Object.keys(counts).map(name => ({ name, count: counts[name] }));
+        entries.sort((a, b) => b.count - a.count);
+        
+        if (entries.length === 0) {
+          return [
+            { name: "Ball Mill 2", count: 0 },
+            { name: "Jaw Crusher 1", count: 0 },
+            { name: "Flotation Cell 5", count: 0 }
+          ];
+        }
+        while (entries.length < 3) {
+          entries.push({ name: "Plant Auxiliary", count: 0 });
+        }
+        return entries.slice(0, 3);
+      };
+
+      const getPlantVerdict = () => {
+        const activeWOs = workOrders.filter(w => w.status !== "Completed");
+        const sparesShort = shortages.length;
+        
+        if (activeWOs.some(w => w.criticality === "High" && w.status === "Awaiting Spares")) {
+          return {
+            bg: "bg-red-950/20 border-red-500/30 text-red-200",
+            color: "text-red-400",
+            rating: "CRITICAL RISK",
+            text: "Boiler/fitter outages on critical high-impact assets are currently locked in 'Awaiting Spares' status. Critical metallurgical bypass bottleneck detected."
+          };
+        }
+        
+        if (activeWOs.length > 3 || sparesShort > 0) {
+          return {
+            bg: "bg-amber-950/20 border-amber-500/30 text-amber-200",
+            color: "text-amber-400",
+            rating: "WARNING SENSITIVE",
+            text: "Minor material shortages reported by artisans. Workorders pileups are stretching foreman capacity, but operations remain active."
+          };
+        }
+        
+        return {
+          bg: "bg-emerald-950/20 border-emerald-500/30 text-emerald-200",
+          color: "text-emerald-400",
+          rating: "OPTIMAL FLOW",
+          text: "All primary systems (Jaw Crusher, Ball Mill, Flotation Circuit) are fully powered and synchronized. No materials backlogs reported."
+        };
+      };
+
+      const generateAIReportSummary = () => {
+        const activeCount = workOrders.filter(w => w.status !== "Completed").length;
+        const completedCount = workOrders.filter(w => w.status === "Completed").length;
+        const sparesCount = shortages.length;
+        
+        let analysis = `=== MINESYNC HEURISTIC METALLURGICAL EVALUATION REPORT ===\n`;
+        analysis += `DATE: ${new Date().toLocaleDateString()} // STATUS: ACTIVE PIPELINE SYNTHESIS\n\n`;
+        analysis += `1. STATISTICAL SUMMARY:\n`;
+        analysis += `   - ACTIVE WORK ORDERS: ${activeCount} pending dispatch\n`;
+        analysis += `   - RESOLVED WORK CARDS: ${completedCount} completed\n`;
+        analysis += `   - LOGGED STORES SHORTAGES: ${sparesCount} in out-of-stock queue\n`;
+        analysis += `   - MEAN TIME TO REPAIR (MTTR): ${getMTTR()}\n\n`;
+        
+        analysis += `2. GUIDELINE SYNTHESIS COMPLIANCE:\n`;
+        analysis += `Comparing operations against active Plant Guidelines: "${plantGuidelines.slice(0, 100)}..."\n\n`;
+        
+        if (plantGuidelines.toLowerCase().includes("ball mill 2")) {
+          const bmWO = workOrders.find(w => w.assetName.toLowerCase().includes("ball mill") && w.status !== "Completed");
+          if (bmWO) {
+            analysis += `🚨 RISK DETECTED: Ball Mill 2 guidelines state that if Ball Mill 2 is down, the flotation circuit halts. Currently, there is an active work order (${bmWO.id}: "${bmWO.title}") on Ball Mill 2. FLOTATION CIRCUIT IS AT IMMEDIATE RISK OF STARVATION OUTAGE!\n\n`;
+          } else {
+            analysis += `✅ COMPLIANT: Ball Mill 2 is operating within safety guidelines. Flotation cell telemetry is nominal.\n\n`;
+          }
+        }
+
+        if (plantGuidelines.toLowerCase().includes("boiler maker")) {
+          const bmCrackWO = workOrders.find(w => w.title.toLowerCase().includes("crack") && w.status !== "Completed");
+          if (bmCrackWO) {
+            analysis += `⚠️ SAFETY NOTICE: Active structural crack reported (${bmCrackWO.id}). Metallurgical guidelines mandate clearout within 4 hours. Ensure boiler makers have authorized hot-work permits.\n\n`;
+          }
+        }
+        
+        if (sparesCount > 0) {
+          analysis += `⚠️ INVENTORY ALERT: There are ${sparesCount} missing spares reported by artisans. This breaches the 'Spares must always be kept above 2 units' threshold. Restock parts from the Logistics console immediately to avoid artisan downtime.\n\n`;
+        } else {
+          analysis += `✅ LOGISTICS: Spare parts and stores stockpile levels are compliant with plant guidelines.\n\n`;
+        }
+        
+        analysis += `3. CRITICAL HEURISTIC RECOMMENDATIONS:\n`;
+        if (activeCount > 0) {
+          analysis += `   - Dispatch foremen to prioritize critical path workcards.\n`;
+          analysis += `   - Management must inspect artisan cards and inject Expert engineering safety directives.\n`;
+        } else {
+          analysis += `   - All plant operations are healthy. Continue with standard visual inspections and preventative maintenance schedule.\n`;
+        }
+        
+        return analysis;
+      };
+
+      // Work Order Actions & Shortages Management
+      const handleResolveShortage = (shortageId, itemName) => {
+        setShortages(prev => prev.filter(s => s.id !== shortageId));
+        setInventory(prev => prev.map(inv => {
+          if (inv.name.toLowerCase() === itemName.toLowerCase() || inv.name === itemName) {
+            return { ...inv, quantity: inv.quantity + 10 };
+          }
+          return inv;
+        }));
+        triggerNotification("Stock Replenished", `${itemName} stock replenished by +10 and material shortage resolved.`, "Foreman");
+      };
+
+      // Foreman Predictive Autocomplete logs & guides
+      const handleJobNameChange = (val) => {
+        setJobName(val);
+        if (val.trim()) {
+          const filtered = suggestions.jobNames.filter(name => 
+            name.toLowerCase().includes(val.toLowerCase())
+          );
+          setActiveJobSuggestions(filtered);
+        } else {
+          setActiveJobSuggestions([]);
+        }
+      };
+
+      const handleSerialChange = (val) => {
+        setJobSerial(val);
+        if (val.trim()) {
+          const filtered = suggestions.serialNumbers.filter(serial => 
+            serial.toLowerCase().includes(val.toLowerCase())
+          );
+          setActiveSerialSuggestions(filtered);
+        } else {
+          setActiveSerialSuggestions([]);
+        }
+      };
+
+      const handleInstructionChange = (val) => {
+        setJobWhatToDo(val);
+        if (val.trim()) {
+          const filtered = suggestions.whatToDos.filter(desc => 
+            desc.toLowerCase().includes(val.toLowerCase())
+          );
+          setActiveInstructionSuggestions(filtered);
+        } else {
+          setActiveInstructionSuggestions([]);
+        }
+      };
+
+      const handleSelectJobSuggestion = (name) => {
+        setJobName(name);
+        setActiveJobSuggestions([]);
+        
+        const index = suggestions.jobNames.indexOf(name);
+        if (index !== -1) {
+          const serial = suggestions.serialNumbers[index] || "";
+          const instruction = suggestions.whatToDos[index] || "";
+          setJobSerial(serial);
+          setJobWhatToDo(instruction);
+          
+          const matchingAsset = assets.find(a => a.serial === serial || name.toLowerCase().includes(a.name.toLowerCase()));
+          if (matchingAsset) {
+            setJobAssetId(matchingAsset.id);
+          }
+        }
+      };
+
+      // Transmitter Radio Chat handler
+      const handleSendDirectChat = (e) => {
+        e.preventDefault();
+        if (!typedChatMsg.trim()) return;
+
+        const senderName = currentUser ? currentUser.name : "Foreman";
+        const receiverName = currentUser?.role === "Foreman" ? "Artisans" : "Foreman";
+        
+        const newChat = {
+          id: Date.now(),
+          sender: senderName,
+          receiver: receiverName,
+          text: typedChatMsg.trim(),
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        fetch('/api/chats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newChat)
+        })
+        .then(res => res.json())
+        .then(savedChat => {
+          setChats(prev => [...prev, savedChat]);
+          setPartTypedChatMsg("");
+          triggerNotification("Radio Dispatch Sent", `Sent: "${newChat.text}"`, "Radio Chat");
+        })
+        .catch(err => {
+          console.error("Chat error:", err);
+          setChats(prev => [...prev, newChat]);
+          setPartTypedChatMsg("");
+        });
+      };
+
+      // Artisan Assignment Approvals & Progress tracking
+      const handleApproveJob = (woId) => {
+        fetch(`/api/work-orders/${woId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: "In-Progress", progress: 10 })
+        })
+        .then(res => res.json())
+        .then(updatedWo => {
+          setWorkOrders(prev => prev.map(w => w.id === woId ? { ...w, ...updatedWo } : w));
+          triggerNotification("Job Acknowledged", `Work Order ${woId} is now In-Progress.`, "Artisan");
+        })
+        .catch(err => {
+          console.error(err);
+          setWorkOrders(prev => prev.map(w => w.id === woId ? { ...w, status: "In-Progress", progress: 10 } : w));
+        });
+      };
+
+      const handleUpdateProgress = (woId, progressValue, progressNotes) => {
+        fetch(`/api/work-orders/${woId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            progress: parseInt(progressValue) || 10,
+            progressNotes: progressNotes || ""
+          })
+        })
+        .then(res => res.json())
+        .then(updatedWo => {
+          setWorkOrders(prev => prev.map(w => w.id === woId ? { ...w, ...updatedWo } : w));
+        })
+        .catch(err => {
+          console.error(err);
+          setWorkOrders(prev => prev.map(w => w.id === woId ? { ...w, progress: parseInt(progressValue) || 10, progressNotes: progressNotes || "" } : w));
+        });
+      };
+
+      const handleCompleteJob = (woId, finalNotes) => {
+        fetch(`/api/work-orders/${woId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            status: "Completed", 
+            progress: 100,
+            artisanNotes: finalNotes 
+          })
+        })
+        .then(res => res.json())
+        .then(updatedWo => {
+          setWorkOrders(prev => prev.map(w => w.id === woId ? { ...w, ...updatedWo } : w));
+          setArtisanProgressVal("");
+          setArtisanNotesInput("");
+          triggerNotification("Job Completed", `Work Order ${woId} is marked COMPLETED.`, "Artisan");
+        })
+        .catch(err => {
+          console.error(err);
+          setWorkOrders(prev => prev.map(w => w.id === woId ? { ...w, status: "Completed", progress: 100, artisanNotes: finalNotes, completedAt: new Date().toLocaleString() } : w));
+          setArtisanProgressVal("");
+          setArtisanNotesInput("");
+        });
+      };
+
+      const handleReportShortage = (e) => {
+        e.preventDefault();
+        if (!partComplaintInput.trim()) return;
+
+        const item = partComplaintInput.trim();
+        
+        const existingShortage = shortages.find(s => s.item.toLowerCase() === item.toLowerCase());
+        let nextShortages = [...shortages];
+        if (existingShortage) {
+          nextShortages = shortages.map(s => s.item.toLowerCase() === item.toLowerCase() ? { ...s, count: s.count + 1 } : s);
+        } else {
+          nextShortages.push({ id: `S-${Date.now()}`, item, count: 1 });
+        }
+        setShortages(nextShortages);
+
+        const activeWo = workOrders.find(wo => wo.assignedToId === currentUser.id && wo.status !== "Completed");
+        if (activeWo) {
+          fetch(`/api/work-orders/${activeWo.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: "Awaiting Spares", progressNotes: `Shortage reported: ${item}` })
+          })
+          .then(res => res.json())
+          .then(updatedWo => {
+            setWorkOrders(prev => prev.map(w => w.id === activeWo.id ? { ...w, ...updatedWo } : w));
+          })
+          .catch(err => {
+            console.error(err);
+            setWorkOrders(prev => prev.map(w => w.id === activeWo.id ? { ...w, status: "Awaiting Spares", progressNotes: `Shortage reported: ${item}` } : w));
+          });
+        }
+
+        setPartComplaintInput("");
+        triggerNotification("Shortage Dispatched", `Spares shortage logged for: ${item}`, "Artisan");
+      };
+
+
       // Timer for screen loader
       useEffect(() => {
         if (showDeviceSetup) return;
@@ -3518,6 +3963,5 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a271ef299d0f97ee',t:'MTc4NjA2MDEyNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f"}' crossorigin="anonymous"></script>
 </body>
 </html>
