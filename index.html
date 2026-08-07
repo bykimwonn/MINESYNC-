@@ -263,7 +263,6 @@
       const [companyContacts, setCompanyContacts] = useState(() => localStorage.getItem("msync_v20_company_contacts") || "+263-78-329-1237");
       const [plantGuidelines, setPlantGuidelines] = useState(() => localStorage.getItem("msync_v20_plant_guidelines") || "Our plant operates a primary Jaw Crusher that feeds Ball Mill 2. If Ball Mill 2 is down, the entire flotation circuit is halted. Boiler makers must clear structural frame cracks within 4 hours, and fitters must resolve pulley outages within 2 hours. Spares must always be kept above 2 units.");
 
-      // SMTP States
       const [smtpHost, setSmtpHost] = useState(() => localStorage.getItem("msync_v20_smtp_host") || "");
       const [smtpPort, setSmtpPort] = useState(() => localStorage.getItem("msync_v20_smtp_port") || "587");
       const [smtpUser, setSmtpUser] = useState(() => localStorage.getItem("msync_v20_smtp_user") || "");
@@ -565,68 +564,6 @@
         triggerNotification("Profile Updated Successfully", "Secure credentials configured. Redirecting...", "System");
       };
 
-      // --- PROFILE ACTIONS ---
-      const isProfileIncomplete = () => {
-        if (!currentUser || currentUser.role === "Owner" || currentUser.role === "Admin") return false;
-        return !profileDob || !profileAddress || !profilePhone || !profileEmergencyName || !profileEmergencyPhone;
-      };
-
-      const handleSaveUserProfile = (e) => {
-        e.preventDefault();
-        
-        const updatedUsers = users.map(u => {
-          if (u.id === currentUser.id) {
-            return {
-              ...u,
-              dob: profileDob,
-              address: profileAddress,
-              whatsapp: profilePhone,
-              emergencyName: profileEmergencyName,
-              emergencyPhone: profileEmergencyPhone,
-              profileImg: profileImg,
-              changedPassword: true
-            };
-          }
-          return u;
-        });
-
-        setUsers(updatedUsers);
-        const updatedUserObj = updatedUsers.find(u => u.id === currentUser.id);
-        setCurrentUser(updatedUserObj);
-        setShowProfileModal(false);
-        triggerNotification("Profile Sync Complete", "Emergency contacts and shift details successfully updated.", "System");
-      };
-
-      // --- MANAGEMENT ACTION DIRECTIVES ---
-      const handleAddBudgetApprove = (woId) => {
-        if (!mgmtBudgetInput.trim()) return;
-        setWorkOrders(prev => prev.map(wo => {
-          if (wo.id === woId) {
-            return { ...wo, repairCost: mgmtBudgetInput };
-          }
-          return wo;
-        }));
-        setMgmtBudgetInput("");
-        triggerNotification("Budget Clearance Issued", `Repair cost approved for Work Order ${woId}.`, "System");
-      };
-
-      const handleAddManagementDirective = (woId) => {
-        if (!mgmtDirectiveInput.trim()) return;
-        setWorkOrders(prev => prev.map(wo => {
-          if (wo.id === woId) {
-            return { ...wo, engineeringDirective: mgmtDirectiveInput, authorizedBy: currentUser.username };
-          }
-          return wo;
-        }));
-        setMgmtDirectiveInput("");
-        triggerNotification("Directive Dispatched", `Safety / Engineering guidelines registered on Work Order ${woId}.`, "System");
-      };
-
-      const handleRestockParts = (partName, qty) => {
-        setInventory(prev => prev.map(p => p.name === partName ? { ...p, quantity: p.quantity + parseInt(qty) } : p));
-        triggerNotification("Stores Replenished", `${qty} units added to ${partName} stockpile.`, "System");
-      };
-
       // --- RESET DEVICE ONBOARDING TRIGGER (Friction fix requested by user!) ---
       const handleResetDeviceRemembrance = () => {
         if (confirm("Are you sure you want to reset this device's company configuration? This will safely direct you back to the onboarding matrix.")) {
@@ -638,182 +575,379 @@
         }
       };
 
-      // --- MOCK INTEGRATED "AI" ADAPTIVE TEXT ENGINE ---
-      const generateAIReportSummary = () => {
-        const activeOrdersCount = workOrders.filter(w => w.status !== "Completed").length;
-        const completeOrdersCount = workOrders.filter(w => w.status === "Completed").length;
-        const awaitingSparesCount = workOrders.filter(w => w.status === "Awaiting Spares").length;
-        
-        let report = `AI PLANT OPERATIONAL REPORT - SYNTHESIS\n`;
-        report += `===============================================\n\n`;
-        report += `Live Metrics Analyzed:\n`;
-        report += `- Outstanding Plant Breakdowns: ${activeOrdersCount} Active Outages\n`;
-        report += `- Completed Shift Tickets: ${completeOrdersCount} Resolved Repairs\n`;
-        report += `- Material-Blocked Repairs (Red Flags): ${awaitingSparesCount} Awaiting Spares\n`;
-        report += `- Calculated MTTR Speed: ${getMTTR()}\n\n`;
+      // --- AUTHENTICATIONS ---
 
-        report += `Matching live metrics against written Management Directives...\n`;
-        report += `\"${plantGuidelines}\"\n\n`;
-
-        // Interactive matching algorithms
-        let vulnerabilities = [];
-        let performanceAdherence = [];
-
-        if (plantGuidelines.toLowerCase().includes("ball mill 2")) {
-          const millOutages = workOrders.filter(w => w.assetId === "AST-101" && w.status !== "Completed");
-          if (millOutages.length > 0) {
-            vulnerabilities.push(`CRITICAL DANGER: Your guidelines specify that 'If Ball Mill 2 is down, the entire flotation circuit is halted'. Currently, there are ${millOutages.length} active breakdowns on Ball Mill 2. Circuit is stalled.`);
-          } else {
-            vulnerabilities.push(`Milling Circuit Status: Ball Mill 2 is running fine. Flotation circuit risk is currently nominal.`);
-          }
-        }
-
-        if (plantGuidelines.toLowerCase().includes("boiler maker") || plantGuidelines.toLowerCase().includes("hours")) {
-          const boilerMakers = users.filter(u => u.trade === "Boiler Maker");
-          boilerMakers.forEach(bm => {
-            const adRate = bm.slaAdherence || 100;
-            if (adRate < 90) {
-              performanceAdherence.push(`SLA Alert: Boiler Maker ${bm.name} has an SLA speed of ${adRate}%, failing your guideline target of 'clearing structural frame cracks within 4 hours'.`);
-            }
-          });
-        }
-
-        if (plantGuidelines.toLowerCase().includes("spares") || plantGuidelines.toLowerCase().includes("units")) {
-          const criticalParts = inventory.filter(p => p.quantity <= 2);
-          criticalParts.forEach(p => {
-            vulnerabilities.push(`Stock warning: '${p.name}' quantity is ${p.quantity} units, failing your plant guideline rule of 'spares must always be kept above 2 units'.`);
-          });
-        }
-
-        report += `AI Diagnostic Findings:\n`;
-        if (vulnerabilities.length === 0 && performanceAdherence.length === 0) {
-          report += `🟢 Plant operations are fully optimized. No structural, mechanical, or stockpile rules violated. Standard MTTR is within guidelines.`;
-        } else {
-          vulnerabilities.forEach(v => { report += `🔴 ${v}\n`; });
-          performanceAdherence.forEach(p => { report += `⚠️ ${p}\n`; });
-        }
-
-        return report;
-      };
-
-      // --- ARTISAN ACTIONS ---
-      const [artisanNotesInput, setArtisanNotesInput] = useState("");
-      const [artisanProgressVal, setArtisanProgressVal] = useState(0);
-      const [partComplaintInput, setPartComplaintInput] = useState("");
-
-      const handleApproveJob = (woId) => {
-        setWorkOrders(prev => prev.map(wo => {
-          if (wo.id === woId) {
-            const nextStatus = wo.partsShortageFlag ? "Awaiting Spares" : "In-Progress";
-            return { ...wo, status: nextStatus, progress: 10 };
-          }
-          return wo;
-        }));
-        triggerNotification("Operation Approved", "Repair state toggled to active workflow.", "System");
-      };
-
-      const handleUpdateProgress = (woId, percent, notes) => {
-        setWorkOrders(prev => prev.map(wo => {
-          if (wo.id === woId) {
-            return { ...wo, progress: parseInt(percent), progressNotes: notes };
-          }
-          return wo;
-        }));
-      };
-
-      const handleCompleteJob = (woId, finalNotes) => {
-        setWorkOrders(prev => prev.map(wo => {
-          if (wo.id === woId) {
-            if (wo.partsRequired !== "None") {
-              setInventory(inv => inv.map(p => {
-                if (p.name === wo.partsRequired && p.quantity > 0) {
-                  return { ...p, quantity: p.quantity - 1 };
-                }
-                return p;
-              }));
-            }
-            
-            setUsers(uList => uList.map(u => {
-              if (u.id === wo.assignedToId) {
-                const finished = (u.completedCount || 0) + 1;
-                const adRate = Math.min(100, Math.floor(80 + (Math.random() * 20)));
-                return { ...u, completedCount: finished, slaAdherence: adRate };
-              }
-              return u;
-            }));
-
-            return { 
-              ...wo, 
-              status: "Completed", 
-              progress: 100, 
-              completedAt: new Date().toLocaleString(),
-              artisanNotes: finalNotes
-            };
-          }
-          return wo;
-        }));
-        setArtisanNotesInput("");
-        triggerNotification("Outage SLA Resolved ✔️", "Performance logs registered. Ticket cleared.", "System");
-      };
-
-      const handleReportShortage = (e) => {
-        e.preventDefault();
-        if (!partComplaintInput.trim()) return;
-
-        const existing = shortages.find(s => s.item.toLowerCase() === partComplaintInput.trim().toLowerCase());
-        if (existing) {
-          setShortages(prev => prev.map(s => s.id === existing.id ? { ...s, count: s.count + 1, status: "Active" } : s));
-        } else {
-          setShortages(prev => [...prev, { id: `S-${Date.now()}`, item: partComplaintInput.trim(), count: 1, status: "Active" }]);
-        }
-
-        triggerNotification("Stock shortage registered", `Logged shortage for '${partComplaintInput}' in system.`, "System");
-        setPartComplaintInput("");
-      };
-
-      const handleResolveShortage = (shortageId, itemName) => {
-        setShortages(prev => prev.filter(s => s.id !== shortageId));
-        setInventory(prev => prev.map(p => {
-          if (p.name.toLowerCase().includes(itemName.toLowerCase()) || itemName.toLowerCase().includes(p.name.toLowerCase())) {
-            return { ...p, quantity: p.quantity + 10 };
-          }
-          return p;
-        }));
-        triggerNotification("Stock Replenished", `${itemName} stock restored. Warnings removed.`, "System");
-      };
-
-      // --- DIRECT CHAT ---
-      const [typedChatMsg, setPartTypedChatMsg] = useState("");
+      // 1. OWNER SIGN IN (BONGANI TSHUMA)
+      const [ownerUsername, setOwnerUsername] = useState("");
+      const [ownerPassword, setOwnerPassword] = useState("");
       
-      const handleSendDirectChat = (e) => {
+      const handleOwnerLogin = (e) => {
         e.preventDefault();
-        if (!typedChatMsg.trim()) return;
+        
+        if (selectedLoginCompany.trim() !== companyName) {
+          setErrorMsg(`Validation Failed: Unrecognized Organization Name "${selectedLoginCompany}".`);
+          return;
+        }
 
-        const isForemanSender = currentRole === "PLANT_FOREMAN";
-        const senderLabel = isForemanSender ? "Foreman" : (currentUser ? currentUser.name.split(" ")[0] : "Artisan");
-        const receiverLabel = isForemanSender ? "Artisans" : "Foreman";
+        if (ownerUsername === "BT_COMPANY" && ownerPassword === "bonganibykimwonn0783291237") {
+          const ownerObj = { username: "BT_COMPANY", name: "BONGANI TSHUMA (Owner)", role: "Owner" };
+          setCurrentUser(ownerObj);
+          setCurrentRole("OWNER");
+          triggerNotification("VIP Master Console Access", "BONGANI TSHUMA secure handover consoles active.", "System");
+          setErrorMsg("");
+        } else {
+          setErrorMsg("Access Denied: Unrecognized Owner Security Token.");
+        }
+      };
 
-        const newChat = {
-          id: Date.now(),
-          sender: senderLabel,
-          receiver: receiverLabel,
-          text: typedChatMsg.trim(),
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      // Create Admin Profile (Owner only)
+      const [newAdminName, setNewAdminName] = useState("");
+      const [newAdminEmail, setNewAdminEmail] = useState("");
+      const [newAdminUser, setNewAdminUser] = useState("");
+      const [newAdminPass, setNewAdminPass] = useState("");
+
+      const handleCreateAdmin = (e) => {
+        e.preventDefault();
+        if (!newAdminName || !newAdminEmail || !newAdminUser || !newAdminPass) {
+          alert("All fields are mandatory.");
+          return;
+        }
+        const updatedAdmins = [...admins, { username: newAdminUser, name: newAdminName, email: newAdminEmail, password: newAdminPass }];
+        setAdmins(updatedAdmins);
+        setNewAdminName("");
+        setNewAdminEmail("");
+        setNewAdminUser("");
+        setNewAdminPass("");
+        triggerNotification("Admin Setup Succeeded", `Admin ${newAdminUser} configured. Secure handover active.`, "System");
+        
+        alert("🔒 Admin configured! Because this is a secure clean install, the OWNER button on the gateway page has been automatically removed. The system is now fully handed over to the Admin!");
+        handleLogout();
+      };
+
+      // --- ADMIN LOGIN ---
+      const [adminUsername, setAdminUsername] = useState("");
+      const [adminPassword, setAdminPassword] = useState("");
+      
+      const handleAdminLogin = (e) => {
+        e.preventDefault();
+
+        if (selectedLoginCompany.trim() !== companyName) {
+          setErrorMsg(`Validation Failed: Unrecognized Organization Name "${selectedLoginCompany}".`);
+          return;
+        }
+
+        if (isAccountLocked(adminUsername)) {
+          setErrorMsg("🚫 ACCOUNT BLOCKED: Reset credentials via support email or Ops Engineer.");
+          return;
+        }
+
+        const foundAdmin = admins.find(a => a.username === adminUsername && a.password === adminPassword);
+        if (foundAdmin) {
+          clearFailedAttempts(adminUsername);
+          setCurrentUser({ ...foundAdmin, role: "Admin" });
+          setCurrentRole("ADMIN");
+          triggerNotification("Admin session active", `Welcome ${foundAdmin.name}. Accessing Artisan configurations.`, "System");
+          setErrorMsg("");
+        } else {
+          recordFailedAttempt(adminUsername);
+          setErrorMsg("Invalid Admin Credentials.");
+        }
+      };
+
+      // Admin user management functions
+      const [newUsrName, setNewUsrName] = useState("");
+      const [newUsrUser, setNewUsrUser] = useState("");
+      const [newUsrRole, setNewUsrRole] = useState("Artisan");
+      const [newUsrTrade, setNewUsrTrade] = useState("Boiler Maker"); 
+      const [newUsrEmail, setNewUsrEmail] = useState("");
+      const [newUsrWhatsapp, setNewUsrWhatsapp] = useState("");
+
+      const handleCreateUserByAdmin = (e) => {
+        e.preventDefault();
+        if (!newUsrName || !newUsrUser || !newUsrEmail || !newUsrWhatsapp) {
+          alert("All parameters must be set.");
+          return;
+        }
+        if (users.some(u => u.username === newUsrUser)) {
+          alert("Username is already taken.");
+          return;
+        }
+        const newUser = {
+          id: `U-${Date.now()}`,
+          username: newUsrUser,
+          name: newUsrName,
+          role: newUsrRole,
+          trade: newUsrTrade,
+          password: "temp123", // Default password
+          changedPassword: false,
+          email: newUsrEmail,
+          whatsapp: newUsrWhatsapp,
+          online: false,
+          completedCount: 0,
+          assignedCount: 0,
+          slaAdherence: 100,
+          dob: "",
+          address: "",
+          emergencyName: "",
+          emergencyPhone: "",
+          profileImg: ""
+        };
+        setUsers([...users, newUser]);
+        setNewUsrName("");
+        setNewUsrUser("");
+        setNewUsrEmail("");
+        setNewUsrWhatsapp("");
+        triggerNotification("Employee Created", `User ${newUsrName} created. Default password is 'temp123'.`, "Admin");
+      };
+
+      // --- ADMIN PASSWORD RESET CODES ---
+      const handleResetPassword = (userId) => {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, password: "temp123", changedPassword: false } : u));
+        triggerNotification("Security Clearance Reset", "Password reset back to 'temp123'.", "Admin");
+      };
+
+      // Admin manually overrides and sets new password for a user
+      const handleForcePasswordOverride = (e) => {
+        e.preventDefault();
+        if (!adminChangingUserId || !adminNewPasswordOverride.trim()) {
+          alert("Please select an employee and write their new password.");
+          return;
+        }
+        setUsers(prev => prev.map(u => {
+          if (u.id === adminChangingUserId) {
+            return { ...u, password: adminNewPasswordOverride.trim(), changedPassword: true };
+          }
+          return u;
+        }));
+        setAdminChangingUserId("");
+        setAdminNewPasswordOverride("");
+        triggerNotification("Password Override Succeeded", "Technician credentials modified securely.", "Admin");
+      };
+
+      // --- RECOVERY BYPASS FOR OPERATIONS ENGINEER ---
+      const handleOpsAdminBypass = (e) => {
+        e.preventDefault();
+        if (!opsUsernameInput || !opsPasswordInput || !newBypassAdminUser || !newBypassAdminPass) {
+          alert("All bypass fields are mandatory.");
+          return;
+        }
+
+        fetch('/api/auth/ops-recovery-reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            opsUsername: opsUsernameInput.trim(),
+            opsPassword: opsPasswordInput,
+            newBypassAdminUser: newBypassAdminUser.trim(),
+            newBypassAdminPass: newBypassAdminPass
+          })
+        })
+        .then(res => {
+          if (!res.ok) throw new Error("Authorization denied");
+          return res.json();
+        })
+        .then(data => {
+          setAdmins([{
+            username: newBypassAdminUser.trim(),
+            password: newBypassAdminPass,
+            name: "Shift Admin",
+            email: "admin@minesync.com"
+          }]);
+          
+          setShowOpsBypassModal(false);
+          setOpsUsernameInput("");
+          setOpsPasswordInput("");
+          setNewBypassAdminUser("");
+          setNewBypassAdminPass("");
+          
+          alert("🟢 Operations Engineer Clearance Approved! The Administrator credentials have been successfully reset. You can now log into the Admin portal.");
+        })
+        .catch(err => {
+          alert("Bypass Denied: Credentials do not match the registered 'Operations Engineer'. Please configure their profile first.");
+        });
+      };
+
+      // --- MANAGEMENT ROSTER CORES ---
+      const handleMgmtSignup = (e) => {
+        e.preventDefault();
+        if (!mgmtFullName || !mgmtPassword) {
+          alert("Complete all fields.");
+          return;
+        }
+        const newMgmt = { position: mgmtPosition, name: mgmtFullName, password: mgmtPassword, biometricConfigured: true };
+        setManagement([...management, newMgmt]);
+        setIsMgmtSignup(false);
+        setPlantUsername(mgmtPosition);
+        setPlantPassword(mgmtPassword);
+        triggerNotification("Management Profile Configured", `Signed up successfully as ${mgmtPosition}.`, "System");
+      };
+
+      // --- PLANT WORKFORCE SIGN-INS ---
+      const handlePlantLogin = (e) => {
+        if (e) e.preventDefault();
+
+        if (selectedLoginCompany.trim() !== companyName) {
+          setErrorMsg(`Validation Failed: Unrecognized Organization Name "${selectedLoginCompany}".`);
+          return;
+        }
+
+        if (isAccountLocked(plantUsername)) {
+          setErrorMsg("🚫 ACCOUNT BLOCKED: Reset credentials via standard email recovery or ask your Admin.");
+          return;
+        }
+
+        if (plantSubRole === "Management") {
+          const foundMgmt = management.find(m => m.position === plantUsername && m.password === plantPassword);
+          if (foundMgmt) {
+            clearFailedAttempts(plantUsername);
+            setCurrentUser({ name: foundMgmt.name, username: foundMgmt.position, role: foundMgmt.position });
+            setCurrentRole("PLANT_MANAGEMENT");
+            triggerNotification("Management Core Engaged", `Welcome, ${foundMgmt.name} (${foundMgmt.position}).`, "System");
+            setErrorMsg("");
+          } else {
+            recordFailedAttempt(plantUsername);
+            setErrorMsg("Incorrect credentials or position select.");
+          }
+        } else {
+          const foundUser = users.find(u => u.username === plantUsername && u.password === plantPassword);
+          if (foundUser) {
+            clearFailedAttempts(plantUsername);
+            setUsers(prev => prev.map(u => u.id === foundUser.id ? { ...u, online: true } : u));
+            setCurrentUser(foundUser);
+
+            if (foundUser.role === "Foreman") {
+              setCurrentRole("PLANT_FOREMAN");
+              triggerNotification("Foreman Console Initialized", `Roster dispatcher loaded for ${foundUser.name}.`, "System");
+            } else {
+              setCurrentRole("PLANT_ARTISAN");
+              triggerNotification("Artisan Portal Connected", `Technician log ready for ${foundUser.name}.`, "System");
+            }
+            setErrorMsg("");
+          } else {
+            recordFailedAttempt(plantUsername);
+            setErrorMsg("Invalid username or password.");
+          }
+        }
+      };
+
+      const triggerBiometricScan = () => {
+        if (!plantUsername) {
+          setErrorMsg("Please select your position to map biometric matrix.");
+          return;
+        }
+        const activeProfile = management.find(m => m.position === plantUsername);
+        if (!activeProfile) {
+          setErrorMsg("No Biometric configured for this role. Register via Password Sign Up first.");
+          return;
+        }
+
+        setIsBiometricScanning(true);
+        setTimeout(() => {
+          setIsBiometricScanning(false);
+          setCurrentUser({ name: activeProfile.name, username: activeProfile.position, role: activeProfile.position });
+          setCurrentRole("PLANT_MANAGEMENT");
+          triggerNotification("🔒 Fingerprint Integrity Approved", `Secure biometric access approved for ${activeProfile.name}.`, "System");
+          setErrorMsg("");
+        }, 2200);
+      };
+
+      // --- SYSTEM DISPATCH ACTIONS ---
+      const handleCreateWorkOrderSubmit = (e) => {
+        e.preventDefault();
+        if (!jobName || !jobAssetId || !jobArtisanId) {
+          alert("All mandatory fields must be specified.");
+          return;
+        }
+
+        const selectedAsset = assets.find(a => a.id === jobAssetId);
+        const selectedArtisan = users.find(u => u.id === jobArtisanId);
+        const targetPart = inventory.find(p => p.name === jobPartRequired);
+
+        let status = "Pending";
+        let isShortage = false;
+
+        if (jobPartRequired && targetPart) {
+          if (targetPart.quantity <= 0) {
+            status = "Awaiting Spares";
+            isShortage = true;
+          }
+        }
+
+        const newWO = {
+          id: `WO-${Math.floor(1000 + Math.random() * 9000)}`,
+          title: jobName,
+          serial: jobSerial || (selectedAsset ? selectedAsset.serial : ""),
+          description: jobWhatToDo || "Perform standard structural visual check.",
+          assetId: jobAssetId,
+          assetName: selectedAsset ? selectedAsset.name : "Asset",
+          criticality: selectedAsset ? selectedAsset.criticality : "Low",
+          priority: (selectedAsset && selectedAsset.criticality === "High") ? "Urgent" : "Medium",
+          status: status,
+          assignedToId: selectedArtisan ? selectedArtisan.id : "",
+          assignedToName: selectedArtisan ? selectedArtisan.name : "Artisan",
+          durationExpected: jobDays,
+          peopleCount: jobPeopleCount,
+          partsRequired: jobPartRequired || "None",
+          partsShortageFlag: isShortage,
+          createdAt: new Date().toLocaleString(),
+          completedAt: null,
+          progress: 0,
+          progressNotes: "",
+          artisanNotes: "",
+          authorizedBy: "", 
+          engineeringDirective: ""
         };
 
-        setChats([...chats, newChat]);
-        setPartTypedChatMsg("");
-        triggerNotification("Transmitter Dispatch Complete", "Communication sent across internal channels.", "WhatsApp");
+        const updatedWOs = [newWO, ...workOrders];
+        setWorkOrders(updatedWOs);
+
+        if (selectedArtisan) {
+          setUsers(prev => prev.map(u => {
+            if (u.id === selectedArtisan.id) {
+              return { ...u, assignedCount: (u.assignedCount || 0) + 1 };
+            }
+            return u;
+          }));
+        }
+
+        // Learn input history
+        const updatedSuggestions = { ...suggestions };
+        if (!updatedSuggestions.jobNames.includes(jobName)) updatedSuggestions.jobNames.push(jobName);
+        if (jobSerial && !updatedSuggestions.serialNumbers.includes(jobSerial)) updatedSuggestions.serialNumbers.push(jobSerial);
+        if (jobWhatToDo && !updatedSuggestions.whatToDos.includes(jobWhatToDo)) updatedSuggestions.whatToDos.push(jobWhatToDo);
+        setSuggestions(updatedSuggestions);
+
+        if (selectedArtisan && selectedArtisan.whatsapp && selectedArtisan.email) {
+          triggerNotification(
+            `Dispatch Alert sent to ${selectedArtisan.name}`,
+            `📲 WhatsApp text to ${selectedArtisan.whatsapp} & 📧 Email dispatch cleared.`,
+            "WhatsApp"
+          );
+        }
+
+        setJobName("");
+        setJobSerial("");
+        setJobWhatToDo("");
+        setJobAssetId("");
+        setJobDays("1");
+        setJobPeopleCount("1");
+        setJobArtisanId("");
+        setJobPartRequired("");
       };
 
-      // --- INJECTING GUIDED PRESET TEMPLATE DIRECTLY (New Cool Feature!) ---
+      // --- LOGOUT CONTROLLER BUTTON ---
+      const handleLogoutButton = () => {
+        handleLogout();
+      };
+
+      // --- INJECTING GUIDED PRESET TEMPLATE ---
       const applyProcessPresetTemplate = (e) => {
         const val = e.target.value;
         if (!val) return;
         
         let text = "";
         if (val === "copper") {
-          text = "Our plant operates a secondary Jaw Crusher that feeds Ball Mill 2. If Ball Mill 2 is down, the entire flotation circuit is halted. Boiler makers must clear structural frame cracks within 4 hours, and fitters must resolve pulley outages within 2 hours. Spares must always be kept above 2 units.";
+          text = "Our plant operates a primary Jaw Crusher that feeds Ball Mill 2. If Ball Mill 2 is down, the entire flotation circuit is halted. Boiler makers must clear structural frame cracks within 4 hours, and fitters must resolve pulley outages within 2 hours. Spares must always be kept above 2 units.";
         } else if (val === "gold") {
           text = "Gold processing operates with primary agitators feeding the Carbon-in-Pulp (CIP) circuit. If thickener tank 3 experiences an overflow, total plant output is stalled. Fitters must address conveyor pulleys within 1 shift hour. Boiler makers must reinforce tank stress fractures within 3 hours.";
         } else if (val === "iron") {
@@ -824,12 +958,83 @@
         triggerNotification("Operational Guidelines Loaded", `${val.toUpperCase()} plant presets applied to AI Analyst database.`, "System");
       };
 
+      const handleLogoLoadError = () => {
+        setLogoImageError(true);
+      };
+
+      const handleSaveSMTPSettings = (e) => {
+        e.preventDefault();
+        fetch('/api/company', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            smtp: {
+              host: smtpHost,
+              port: smtpPort,
+              user: smtpUser,
+              pass: smtpPass,
+              from: smtpFrom
+            }
+          })
+        })
+        .then(res => res.json())
+        .then(() => {
+          triggerNotification("SMTP Settings Updated", "Secure Mail Server values successfully committed to backend server.", "System");
+          alert("✉️ SMTP Configuration Saved! If you inputted your actual Gmail details, MINESYNC will now send real recovery emails!");
+        });
+      };
+
+      // --- ADVANCED MANAGEMENT ACTIONS (MORE THAN VIEWING) ---
+      const [mgmtDirectiveInput, setMgmtDirectiveInput] = useState("");
+      const [mgmtBudgetInput, setMgmtBudgetInput] = useState("");
+      const [activeSelectedWOId, setActiveSelectedWOId] = useState("");
+      
+      const handleAddManagementDirective = (woId) => {
+        if (!mgmtDirectiveInput.trim()) return;
+        setWorkOrders(prev => prev.map(wo => {
+          if (wo.id === woId) {
+            return { 
+              ...wo, 
+              engineeringDirective: mgmtDirectiveInput,
+              authorizedBy: currentUser.username // Saves which role authorized (Section or Operations Engineer)
+            };
+          }
+          return wo;
+        }));
+        setMgmtDirectiveInput("");
+        triggerNotification("Directive Dispatched", `Safety / Engineering guidelines registered on Work Order ${woId}.`, "System");
+      };
+
+      const handleAddBudgetApprove = (woId) => {
+        if (!mgmtBudgetInput.trim()) return;
+        setWorkOrders(prev => prev.map(wo => {
+          if (wo.id === woId) {
+            return { 
+              ...wo, 
+              repairCost: mgmtBudgetInput,
+              authorizedBy: currentUser.username
+            };
+          }
+          return wo;
+        }));
+        setMgmtBudgetInput("");
+        triggerNotification("Budget Clearance Issued", `Repair cost approved for Work Order ${woId}.`, "System");
+      };
+
+      // Direct restocking of inventory
+      const [refillPartName, setRefillPartName] = useState("");
+      const [refillQuantity, setRefillQuantity] = useState(10);
+      const handleRestockParts = (partName, qty) => {
+        setInventory(prev => prev.map(p => p.name === partName ? { ...p, quantity: p.quantity + parseInt(qty) } : p));
+        triggerNotification("Stores Replenished", `${qty} units added to ${partName} stockpile.`, "System");
+      };
+
       return (
         <div class="min-h-screen flex flex-col justify-between">
           
           {/* --- FIRST-TIME DEVICE DETECTION QUESTIONNAIRE (NEW OR RETURNING) --- */}
           {showDeviceSetup && (
-            <div class="fixed inset-0 z-50 bg-[#060911] flex items-center justify-center p-6 text-center select-none overflow-y-auto">
+            <div class="fixed inset-0 z-50 bg-[#060911] flex items-center justify-center p-6 text-center select-none overflow-y-auto font-sans text-xs">
               <div class="max-w-xl w-full bg-brand-cardBg border-2 border-brand-orange rounded-2xl p-8 shadow-2xl space-y-6 text-left relative">
                 
                 {/* GO BACK BUTTON ON SETUP QUESTIONNAIRE STAGE */}
@@ -850,23 +1055,23 @@
                   <h1 class="text-3xl font-extrabold tracking-widest text-white brand-font uppercase">
                     MINESYNC GATEWAY
                   </h1>
-                  <p class="text-xs text-brand-steelText mt-1 font-mono">SECURE DEVICE REGISTRATION MATRIX</p>
+                  <p class="text-xs text-brand-steelText mt-1 font-mono font-bold">SECURE DEVICE REGISTRATION MATRIX</p>
                 </div>
 
                 {setupStateStep === "NEW_OR_RETURNING" && (
-                  <div class="space-y-4">
-                    <h3 class="text-sm font-bold text-white uppercase tracking-wider font-mono text-center">Is your Metallurgical Organization a New User or Returning?</h3>
+                  <div class="space-y-4 font-mono text-xs">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider font-mono text-center font-bold">Is your Metallurgical Organization a New User or Returning?</h3>
                     <div class="grid grid-cols-2 gap-4">
                       <button 
                         onClick={handleFreshInstall}
-                        class="py-3 bg-brand-orange hover:bg-brand-orangeHover text-white rounded-lg text-xs font-bold font-mono transition-all uppercase"
+                        class="py-3 bg-brand-orange hover:bg-brand-orangeHover text-white rounded-lg text-xs font-bold transition-all uppercase"
                       >
                         🆕 New Organization
                       </button>
                       
                       <button 
                         onClick={() => setSetupStateStep("RESTORE_BACKUP")}
-                        class="py-3 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange text-brand-steelText hover:text-white rounded-lg text-xs font-bold font-mono transition-all uppercase"
+                        class="py-3 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange text-brand-steelText hover:text-white rounded-lg text-xs font-bold transition-all uppercase"
                       >
                         🔄 Returning / Restore
                       </button>
@@ -885,7 +1090,7 @@
                         placeholder="e.g. Bongani Metals Ltd" 
                         value={typedRecoveryCompany}
                         onChange={(e) => handleAutocompleteCompanyType(e.target.value)}
-                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-white"
+                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-white font-sans"
                       />
                       {companySuggestions.length > 0 && (
                         <div class="bg-slate-900 border border-brand-steelBorder rounded mt-1 max-h-32 overflow-y-auto">
@@ -893,7 +1098,7 @@
                             <div 
                               key={idx} 
                               onClick={() => { setTypedRecoveryCompany(c); setCompanySuggestions([]); }}
-                              class="p-2 hover:bg-slate-800 cursor-pointer text-slate-300 animate-pulse"
+                              class="p-2 hover:bg-slate-800 cursor-pointer text-slate-300 animate-pulse border-b border-brand-steelBorder last:border-0"
                             >
                               🏢 {c}
                             </div>
@@ -942,7 +1147,7 @@
                         class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-white focus:outline-none focus:border-brand-orange"
                       />
                     </div>
-                    <div class="flex gap-3">
+                    <div class="flex gap-3 font-sans text-xs">
                       <button type="submit" class="flex-grow py-2.5 bg-emerald-600 text-white font-bold rounded uppercase text-xs font-mono font-bold">
                         Validate Recovery
                       </button>
@@ -957,17 +1162,17 @@
                         Use Demo Key
                       </button>
                     </div>
-                    <p class="text-[10px] text-slate-500">Cloud Recovery key: <code>BONGANI_METAL_SYNC</code></p>
+                    <p class="text-[10px] text-slate-500 font-bold">Cloud Recovery key: <code>BONGANI_METAL_SYNC</code></p>
                   </form>
                 )}
 
                 <div class="pt-4 border-t border-brand-steelBorder/40 text-center space-y-2 font-mono text-[11px]">
-                  <p class="text-slate-400">Are you already registered in your company's database?</p>
+                  <p class="text-slate-400 font-sans">Are you already registered in your company's database?</p>
                   <div class="flex justify-center gap-4">
                     <button 
                       onClick={() => {
-                        localStorage.setItem("msync_v20_device_registered", "true");
-                        localStorage.setItem("msync_v20_installed", "true");
+                        localStorage.setItem("msync_v19_device_registered", "true");
+                        localStorage.setItem("msync_v19_installed", "true");
                         setShowDeviceSetup(false);
                       }}
                       class="text-brand-orange font-bold hover:underline font-mono"
@@ -984,8 +1189,8 @@
                 </div>
 
                 {setupStateStep === "NOT_REGISTERED_WARN" && (
-                  <div class="space-y-4">
-                    <div class="p-3 bg-red-950/40 border border-red-900 rounded-lg text-xs font-mono text-red-300 leading-relaxed">
+                  <div class="space-y-4 font-mono text-xs">
+                    <div class="p-3 bg-red-950/40 border border-red-900 rounded-lg text-xs font-mono text-red-300 leading-relaxed font-sans leading-normal">
                       ⚠️ <strong>Access Restricted:</strong> Please contact your System Administrator, Shift Foreman, or operations supervisor to register your profile first. Once they create your account, return here and select "Yes, Proceed to Login".
                     </div>
                   </div>
@@ -1002,7 +1207,8 @@
                 <div class="absolute inset-0 spin-gear border-4 border-dashed border-brand-orange/40 rounded-full"></div>
                 <div class="absolute w-32 h-32 spin-gear border-4 border-dashed border-amber-500/10 rounded-full" style={{ animationDirection: 'reverse', animationDuration: '6s' }}></div>
                 
-                <div class="absolute z-10 w-28 h-28 bg-white rounded-2xl border-2 border-brand-steelBorder flex items-center justify-center shadow-2xl p-2.5">
+                {/* Logo Image with fallback */}
+                <div class="absolute z-10 w-28 h-28 bg-white rounded-2xl border-2 border-brand-steelBorder flex items-center justify-center shadow-2xl p-2.5 animate-pulse">
                   {!logoImageError ? (
                     <img 
                       src={companyLogoUrl} 
@@ -1011,8 +1217,8 @@
                       onError={handleLogoLoadError} 
                     />
                   ) : (
-                    <div class="flex flex-col items-center justify-center text-center font-mono">
-                      <span class="text-brand-orange text-2xl font-black brand-font leading-none">MS</span>
+                    <div class="flex flex-col items-center justify-center text-center font-mono animate-duration-300">
+                      <span class="text-brand-orange text-2xl font-black brand-font leading-none animate-pulse">MS</span>
                     </div>
                   )}
                 </div>
@@ -1029,7 +1235,7 @@
                 <div class="bg-brand-orange h-full transition-all duration-100" style={{ width: `${loadingProgress}%` }}></div>
               </div>
 
-              <p class="text-xs text-brand-steelText mt-4 font-mono h-6">
+              <p class="text-xs text-brand-steelText mt-4 font-mono h-6 animate-pulse">
                 {loadingStatusText} ({loadingProgress}%)
               </p>
             </div>
@@ -1041,7 +1247,7 @@
               <span>⚠️ PROFILE INCOMPLETE FLAG: Please configure your profile details (DOB, House Address, and Emergency Contacts) in Settings to clear this shift flag.</span>
               <button 
                 onClick={() => setShowProfileModal(true)}
-                class="px-3 py-1 bg-black/40 hover:bg-black/60 rounded text-[10px] uppercase font-bold tracking-wider"
+                class="px-3 py-1 bg-black/40 hover:bg-black/60 rounded text-[10px] uppercase font-bold tracking-wider font-sans font-bold"
               >
                 Configure Settings Now
               </button>
@@ -1052,6 +1258,7 @@
           <header class="border-b border-brand-steelBorder bg-brand-cardBg/80 backdrop-blur px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
               
+              {/* Company Logo with fallback */}
               <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg p-1 border border-brand-steelBorder">
                 {!logoImageError ? (
                   <img 
@@ -1128,14 +1335,14 @@
                 </div>
 
                 <button 
-                  onClick={handleLogout}
+                  onClick={handleLogoutButton}
                   class="px-3 py-1.5 bg-red-950 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-bold rounded tracking-wide transition-colors uppercase font-mono"
                 >
                   LOGOUT
                 </button>
               </div>
             ) : (
-              <span class="text-xs bg-slate-900 border border-brand-steelBorder text-brand-steelText px-3 py-1.5 rounded-full font-mono">
+              <span class="text-xs bg-slate-900 border border-brand-steelBorder text-brand-steelText px-3 py-1.5 rounded-full font-mono animate-pulse">
                 🛑 STANDBY SECURE GATEWAY
               </span>
             )}
@@ -1146,10 +1353,10 @@
             
             {/* GATEWAY GATEWAY SECURITY LOGINS (IF LOGGED OFF) */}
             {!currentUser && (
-              <div class="max-w-4xl mx-auto py-12">
+              <div class="max-w-4xl mx-auto py-12 animate-duration-300">
                 
                 {sessionPath === "LANDING" && (
-                  <div class="text-center space-y-8">
+                  <div class="text-center space-y-8 animate-duration-300">
                     
                     {recoveryState === "NONE" ? (
                       <div class="space-y-12">
@@ -1158,7 +1365,7 @@
                         {errorMsg && <div class="bg-red-950 border border-red-700 text-red-200 text-xs p-3 rounded max-w-md mx-auto font-mono text-left">{errorMsg}</div>}
 
                         {/* COMPANY SELECTION FIELD ON SIGN-IN (Spelling Validation active) */}
-                        <div class="max-w-md mx-auto p-4 bg-brand-cardBg border border-brand-steelBorder rounded-xl text-left space-y-3 font-mono text-xs">
+                        <div class="max-w-md mx-auto p-4 bg-brand-cardBg border border-brand-steelBorder rounded-xl text-left space-y-3 font-mono text-xs animate-duration-300">
                           <label class="block text-[10px] text-brand-orange uppercase font-bold">1. Establish Target Roster Company</label>
                           <p class="text-[10px] text-brand-steelText leading-relaxed">Type your company name. Autocomplete will suggestions matching directories.</p>
                           <div class="relative">
@@ -1168,10 +1375,10 @@
                               placeholder="Type Company Name..."
                               value={selectedLoginCompany}
                               onChange={(e) => handleSelectLoginCompanyType(e.target.value)}
-                              class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white"
+                              class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white font-mono"
                             />
                             {companySuggestions.length > 0 && (
-                              <div class="absolute z-40 left-0 right-0 bg-slate-950 border border-brand-steelBorder mt-1 rounded max-h-32 overflow-y-auto">
+                              <div class="absolute z-45 left-0 right-0 bg-slate-955 border border-brand-steelBorder mt-1 rounded max-h-32 overflow-y-auto">
                                 {companySuggestions.map((c, idx) => (
                                   <div 
                                     key={idx} 
@@ -1185,23 +1392,23 @@
                             )}
                           </div>
 
-                          {/* DEVICE REMEMBRANCE RESET / CHANGE COMPANY (Proactive safety feature requested by user!) */}
+                          {/* DEVICE REMEMBRANCE RESET / CHANGE COMPANY (Friction fix requested by user!) */}
                           <div class="pt-2 border-t border-brand-steelBorder/40 text-center">
                             <button 
                               type="button"
                               onClick={handleResetDeviceRemembrance}
-                              class="text-[10px] text-brand-orange hover:text-brand-orangeHover hover:underline flex items-center justify-center gap-1.5 mx-auto font-bold"
+                              class="text-[10px] text-brand-orange hover:text-brand-orangeHover hover:underline flex items-center justify-center gap-1.5 mx-auto font-bold font-mono"
                             >
                               📱 Change Company & Reset Device Remembrance
                             </button>
                           </div>
                         </div>
 
-                        <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight text-white mb-4 uppercase brand-font">
+                        <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight text-white mb-4 uppercase brand-font animate-pulse">
                           SELECT ACCESS LEVEL
                         </h2>
                         
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto animate-duration-300">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
                           
                           {/* OWNER SECTION - ONLY SHOWN IF ADMINS === 0 */}
                           {admins.length === 0 ? (
@@ -1225,22 +1432,22 @@
                               <p class="text-xs text-brand-steelText leading-relaxed">
                                 Enter the secure system handover console. Set the initial system administrators. Once completed, this Owner button will self-destruct.
                               </p>
-                              <div class="mt-4 text-xs font-bold text-brand-orange font-mono uppercase tracking-wider group-hover:translate-x-1 transition-transform">
+                              <div class="mt-4 text-xs font-bold text-brand-orange font-mono uppercase tracking-wider group-hover:translate-x-1 transition-transform animate-bounce">
                                 Configure Admin Node &rarr;
                               </div>
                             </button>
                           ) : null}
 
                           {/* ADMIN CARD */}
-                          <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl shadow-xl space-y-4 text-left">
+                          <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl shadow-xl space-y-4 text-left font-mono text-xs">
                             <div class="text-brand-orange text-3xl">🛡️</div>
-                            <h3 class="text-lg font-bold text-white uppercase brand-font">
+                            <h3 class="text-lg font-bold text-white uppercase brand-font font-sans">
                               ADMINISTRATOR
                             </h3>
                             <p class="text-xs text-brand-steelText leading-relaxed font-sans text-xs">
                               Roster dispatcher, trade registries, supporting emails details, override password overrides, and online workforce tracking logs.
                             </p>
-                            <div class="flex gap-2 font-mono text-xs">
+                            <div class="flex gap-2">
                               <button 
                                 onClick={() => {
                                   if (!selectedLoginCompany.trim()) {
@@ -1253,7 +1460,7 @@
                                   }
                                   setSessionPath("ADMIN_LOGIN");
                                 }}
-                                class="flex-grow py-2 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded transition-all"
+                                class="flex-grow py-2 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded font-mono font-bold font-sans text-xs"
                               >
                                 Log In Admin &rarr;
                               </button>
@@ -1290,11 +1497,11 @@
                               admins.length === 0 ? 'opacity-40 border-brand-steelBorder cursor-not-allowed' : 'border-brand-steelBorder hover:border-brand-orange hover:bg-slate-900'
                             }`}
                           >
-                            <div class="text-brand-orange text-3xl mb-4 group-hover:scale-110 transition-transform">🏭</div>
+                            <div class="text-brand-orange text-3xl mb-4 group-hover:scale-110 transition-transform font-mono text-xs font-bold font-sans">🏭</div>
                             <h3 class="text-lg font-bold text-white uppercase brand-font mb-2">
                               PLANT OPERATIONS
                             </h3>
-                            <p class="text-xs text-brand-steelText leading-relaxed">
+                            <p class="text-xs text-brand-steelText leading-relaxed font-sans">
                               Operational hub for Section/Ops Engineers, Planners, Shift Foremen dispatches, and Artisan field mechanic workspaces.
                             </p>
                             <div class="mt-4 text-xs font-bold text-brand-orange font-mono uppercase tracking-wider group-hover:translate-x-1 transition-transform">
@@ -1307,7 +1514,7 @@
                         {/* FORGOT PASSWORD FORM */}
                         <div class="max-w-md mx-auto pt-10 border-t border-brand-steelBorder/40 mt-10 text-left font-mono">
                           <h4 class="text-sm font-bold uppercase text-white brand-font mb-2">🔑 Forgot Your Password?</h4>
-                          <p class="text-[11px] text-brand-steelText mb-4">Enter your registered email address to receive a secure recovery code inside your email application.</p>
+                          <p class="text-[11px] text-brand-steelText mb-4 font-sans font-bold">Enter your registered email address to receive a secure recovery code inside your email application.</p>
                           <form onSubmit={handleTriggerForgotPassword} class="flex gap-2">
                             <input 
                               type="email"
@@ -1317,7 +1524,7 @@
                               onChange={(e) => setForgotPasswordEmail(e.target.value)}
                               class="flex-grow bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-xs text-white focus:outline-none"
                             />
-                            <button type="submit" class="px-4 py-2 bg-brand-orange text-white text-xs font-bold uppercase rounded font-bold">
+                            <button type="submit" class="px-4 py-2 bg-brand-orange text-white text-xs font-bold uppercase rounded font-mono font-bold font-mono">
                               Recover via Email App
                             </button>
                           </form>
@@ -1329,13 +1536,13 @@
                         <div class="text-center">
                           <span class="text-3xl">🔒</span>
                           <h3 class="text-lg font-bold uppercase text-white brand-font mt-2">Security Recovery</h3>
-                          <p class="text-xs text-brand-steelText">Email linked: {recoveredAccountEmail}</p>
+                          <p class="text-xs text-brand-steelText font-mono font-bold">Email linked: {recoveredAccountEmail}</p>
                         </div>
 
                         {errorMsg && <div class="bg-red-950 border border-red-700 text-red-200 text-xs p-3 rounded mb-4 font-mono">{errorMsg}</div>}
 
                         {recoveryState === "SENT" && (
-                          <form onSubmit={handleConfirmRecoveryCode} class="space-y-4">
+                          <form onSubmit={handleConfirmRecoveryCode} class="space-y-4 font-mono">
                             <div class="bg-brand-orange/10 border border-brand-orange/30 p-2.5 rounded text-[11px] text-brand-orange leading-relaxed">
                               📨 Check your Gmail / Email Client inbox now! We have dispatched a 6-digit recovery code. Enter it below to unlock:
                             </div>
@@ -1366,7 +1573,7 @@
                         )}
 
                         {recoveryState === "CONFIRMED" && (
-                          <form onSubmit={handleCommitRecoveryPassword} class="space-y-4 animate-duration-300">
+                          <form onSubmit={handleCommitRecoveryPassword} class="space-y-4 font-mono">
                             <div>
                               <label class="block text-xs uppercase mb-1 font-bold">New Secure Password</label>
                               <input 
@@ -1392,10 +1599,10 @@
                 {/* OWNER SIGN IN */}
                 {sessionPath === "OWNER_LOGIN" && (
                   <div class="max-w-md mx-auto bg-brand-cardBg border border-brand-steelBorder rounded-xl p-8 shadow-2xl relative text-left font-mono text-xs">
-                    <button onClick={() => setSessionPath("LANDING")} class="absolute top-4 left-4 text-xs text-brand-steelText hover:text-white">&larr; Back</button>
+                    <button onClick={() => setSessionPath("LANDING")} class="absolute top-4 left-4 text-xs text-brand-steelText hover:text-white font-mono">&larr; Back</button>
                     <div class="text-center mb-6 font-sans">
                       <span class="text-4xl text-brand-orange">👑</span>
-                      <h3 class="text-xl font-bold uppercase text-white brand-font mt-2 font-mono">Owner Security Setup</h3>
+                      <h3 class="text-xl font-bold uppercase text-white brand-font mt-2">Owner Security Setup</h3>
                       <p class="text-xs text-brand-steelText font-mono">CLEAN INSTALL HANDOVER GATEWAY</p>
                     </div>
 
@@ -1412,7 +1619,7 @@
                           placeholder="e.g. BT_COMPANY" 
                           value={ownerUsername}
                           onChange={(e) => setOwnerUsername(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange"
+                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange font-mono"
                         />
                       </div>
                       <div>
@@ -1422,7 +1629,7 @@
                           placeholder="••••••••••••" 
                           value={ownerPassword}
                           onChange={(e) => setOwnerPassword(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange"
+                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange font-mono"
                         />
                       </div>
                       <button type="submit" class="w-full py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold rounded tracking-wide uppercase transition-colors brand-font font-bold">
@@ -1435,18 +1642,18 @@
                 {/* ADMIN LOGIN */}
                 {sessionPath === "ADMIN_LOGIN" && (
                   <div class="max-w-md mx-auto bg-brand-cardBg border border-brand-steelBorder rounded-xl p-8 shadow-2xl relative text-left font-mono text-xs">
-                    <button onClick={() => setSessionPath("LANDING")} class="absolute top-4 left-4 text-xs text-brand-steelText hover:text-white">&larr; Back</button>
+                    <button onClick={() => setSessionPath("LANDING")} class="absolute top-4 left-4 text-xs text-brand-steelText hover:text-white font-mono">&larr; Back</button>
                     <div class="text-center mb-6 font-sans">
                       <span class="text-4xl text-brand-orange">🛡️</span>
-                      <h3 class="text-xl font-bold uppercase text-white brand-font mt-2 font-mono animate-duration-300">Administrator Access</h3>
-                      <p class="text-xs text-brand-steelText font-mono">AUTHENTICATING SHIFT REGISTRAR</p>
+                      <h3 class="text-xl font-bold uppercase text-white brand-font mt-2 font-mono">Administrator Access</h3>
+                      <p class="text-xs text-brand-steelText font-mono animate-pulse">AUTHENTICATING SHIFT REGISTRAR</p>
                     </div>
 
                     {errorMsg && <div class="bg-red-950 border border-red-700 text-red-200 text-xs p-3 rounded mb-4 font-mono">{errorMsg}</div>}
 
                     <form onSubmit={handleAdminLogin} class="space-y-4">
                       <div>
-                        <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Target Company: {selectedLoginCompany}</label>
+                        <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold font-mono">Target Company: {selectedLoginCompany}</label>
                       </div>
                       <div>
                         <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Admin Username</label>
@@ -1459,13 +1666,13 @@
                         />
                       </div>
                       <div>
-                        <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Admin Password</label>
+                        <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold font-mono">Admin Password</label>
                         <input 
                           type="password" 
                           placeholder="••••••••••••" 
                           value={adminPassword}
                           onChange={(e) => setAdminPassword(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange"
+                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange font-mono"
                         />
                       </div>
                       <button type="submit" class="w-full py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold rounded tracking-wide uppercase transition-colors brand-font font-bold">
@@ -1478,7 +1685,7 @@
                 {/* PLANT SUB-ROLE SELECT */}
                 {sessionPath === "PLANT_SELECT" && (
                   <div class="text-center max-w-xl mx-auto">
-                    <button onClick={() => setSessionPath("LANDING")} class="mb-6 inline-block text-xs text-brand-steelText hover:text-white">&larr; Back to Landing</button>
+                    <button onClick={() => setSessionPath("LANDING")} class="mb-6 inline-block text-xs text-brand-steelText hover:text-white font-mono">&larr; Back to Landing</button>
                     <h3 class="text-2xl font-bold uppercase text-white brand-font mb-2">OPERATIONS DIVISIONS</h3>
                     <p class="text-xs text-brand-steelText mb-8">Select your specialized segment of the metallurgical workforce</p>
 
@@ -1497,8 +1704,8 @@
                         onClick={() => { setPlantSubRole("Foreman"); setSessionPath("PLANT_LOGIN"); setErrorMsg(""); }}
                         class="p-5 bg-brand-cardBg border border-brand-steelBorder hover:border-brand-orange hover:bg-slate-900 rounded-lg text-left font-mono"
                       >
-                        <div class="text-2xl mb-2 font-sans">👷‍♂️</div>
-                        <h4 class="text-sm font-bold text-white uppercase brand-font font-sans">Foreman</h4>
+                        <div class="text-2xl mb-2 font-sans font-bold">👷‍♂️</div>
+                        <h4 class="text-sm font-bold text-white uppercase brand-font font-sans font-bold">Foreman</h4>
                         <p class="text-[11px] text-brand-steelText mt-1 font-sans">Daily coordinators. dispatches jobs, audits artisan output, handles stock alerts, and receives radio feeds.</p>
                       </button>
 
@@ -1506,8 +1713,8 @@
                         onClick={() => { setPlantSubRole("Artisans"); setSessionPath("PLANT_LOGIN"); setErrorMsg(""); }}
                         class="p-5 bg-brand-cardBg border border-brand-steelBorder hover:border-brand-orange hover:bg-slate-900 rounded-lg text-left"
                       >
-                        <div class="text-2xl mb-2">🔧</div>
-                        <h4 class="text-sm font-bold text-white uppercase brand-font font-sans">Artisan</h4>
+                        <div class="text-2xl mb-2 font-mono">🔧</div>
+                        <h4 class="text-sm font-bold text-white uppercase brand-font font-sans font-bold">Artisan</h4>
                         <p class="text-[11px] text-brand-steelText mt-1 font-sans">Technicians. Commits repairs, slides progress, complains lack of spares, and chats directly with Foreman.</p>
                       </button>
                     </div>
@@ -1517,10 +1724,10 @@
                 {/* PLANT SIGN IN */}
                 {sessionPath === "PLANT_LOGIN" && (
                   <div class="max-w-md mx-auto bg-brand-cardBg border border-brand-steelBorder rounded-xl p-8 shadow-2xl relative text-left font-mono text-xs">
-                    <button onClick={() => setSessionPath("PLANT_SELECT")} class="absolute top-4 left-4 text-xs text-brand-steelText hover:text-white">&larr; Back</button>
+                    <button onClick={() => setSessionPath("PLANT_SELECT")} class="absolute top-4 left-4 text-xs text-brand-steelText hover:text-white font-mono">&larr; Back</button>
                     
                     <div class="text-center mb-6">
-                      <span class="text-4xl text-brand-orange font-sans font-bold">
+                      <span class="text-4xl text-brand-orange font-sans font-bold animate-duration-300">
                         {plantSubRole === "Management" ? "📐" : plantSubRole === "Foreman" ? "👷‍♂️" : "🔧"}
                       </span>
                       <h3 class="text-xl font-bold uppercase text-white brand-font mt-2">{plantSubRole} Sign-On</h3>
@@ -1530,7 +1737,7 @@
                     {errorMsg && <div class="bg-red-950 border border-red-700 text-red-200 text-xs p-3 rounded mb-4 font-mono">{errorMsg}</div>}
 
                     {!isMgmtSignup ? (
-                      <form onSubmit={handlePlantLogin} class="space-y-4">
+                      <form onSubmit={handlePlantLogin} class="space-y-4 font-mono text-xs">
                         <div>
                           <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Target Company: {selectedLoginCompany}</label>
                         </div>
@@ -1564,7 +1771,7 @@
                               placeholder="e.g. foreman_tau" 
                               value={plantUsername}
                               onChange={(e) => setPlantUsername(e.target.value)}
-                              class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange"
+                              class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange font-bold font-mono"
                             />
                           </div>
                         )}
@@ -1576,7 +1783,7 @@
                             placeholder="••••••••••••" 
                             value={plantPassword}
                             onChange={(e) => setPlantPassword(e.target.value)}
-                            class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange"
+                            class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm font-mono text-white focus:outline-none focus:border-brand-orange font-mono"
                           />
                         </div>
 
@@ -1590,7 +1797,7 @@
                             <button 
                               type="button"
                               onClick={triggerBiometricScan}
-                              class="w-full py-2.5 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange hover:text-brand-orange text-brand-steelText font-bold rounded tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-2 font-mono text-xs font-bold font-sans"
+                              class="w-full py-2.5 bg-slate-900 border border-brand-steelBorder hover:border-brand-orange hover:text-brand-orange text-brand-steelText font-bold rounded tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-2 font-mono text-xs font-sans font-bold"
                             >
                               <span class="text-lg">🫵</span> Simulate Fingerprint Authentication
                             </button>
@@ -1629,13 +1836,13 @@
                           </select>
                         </div>
                         <div>
-                          <label class="block text-xs font-mono text-brand-steelText uppercase mb-1">Your Full Name</label>
+                          <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-bold">Your Full Name</label>
                           <input 
                             type="text" 
                             placeholder="e.g. Ronald Sibanda" 
                             value={mgmtFullName}
                             onChange={(e) => setMgmtFullName(e.target.value)}
-                            class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none"
+                            class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none font-sans"
                           />
                         </div>
                         <div>
@@ -1660,9 +1867,9 @@
                     )}
 
                     {isBiometricScanning && (
-                      <div class="absolute inset-0 rounded-xl fingerprint-scanner flex flex-col items-center justify-center text-center p-6 z-30 font-mono text-xs leading-normal">
-                        <div class="w-24 h-24 bg-brand-orange/10 border-2 border-brand-orange rounded-full flex items-center justify-center pulse-animation mb-4 shadow-lg shadow-brand-orange/40">
-                          <span class="text-5xl">🫵</span>
+                      <div class="absolute inset-0 rounded-xl fingerprint-scanner flex flex-col items-center justify-center text-center p-6 z-30 font-mono text-xs">
+                        <div class="w-24 h-24 bg-brand-orange/10 border-2 border-brand-orange rounded-full flex items-center justify-center pulse-animation mb-4 shadow-lg shadow-brand-orange/40 font-sans">
+                          <span class="text-5xl font-bold">🫵</span>
                         </div>
                         <p class="text-brand-orange font-bold font-mono tracking-wider text-sm">RECOGNIZING BIOMETRICS...</p>
                         <p class="text-brand-steelText text-xs mt-1">Hold hand static on terminal lens.</p>
@@ -1680,13 +1887,13 @@
                 {/* FIRST TIME PROFILE CONFIRMATION FOR ARTISAN & FOREMAN */}
                 {(currentUser.role === "Artisan" || currentUser.role === "Foreman") && !currentUser.changedPassword ? (
                   <div class="max-w-md mx-auto bg-brand-cardBg border-2 border-brand-orange rounded-xl p-8 shadow-2xl">
-                    <div class="text-center mb-6">
-                      <span class="text-4xl text-brand-orange">🛡️</span>
-                      <h3 class="text-xl font-bold uppercase text-white brand-font mt-2">Initialize Security Profile</h3>
+                    <div class="text-center mb-6 font-sans">
+                      <span class="text-4xl text-brand-orange font-mono">🛡️</span>
+                      <h3 class="text-xl font-bold uppercase text-white brand-font mt-2 font-sans animate-duration-300">Initialize Security Profile</h3>
                       <p class="text-xs text-brand-steelText font-mono">Verify your email and details to register. Recovery codes will be sent here.</p>
                     </div>
 
-                    <form onSubmit={handleFirstLoginSetup} class="space-y-4 font-mono text-xs leading-normal">
+                    <form onSubmit={handleFirstLoginSetup} class="space-y-4 font-mono text-xs">
                       <div>
                         <label class="block text-xs text-brand-steelText uppercase mb-1 font-bold">Secure Personal Password</label>
                         <input 
@@ -1695,7 +1902,7 @@
                           placeholder="Minimum 5 characters"
                           value={artisanNewPassword}
                           onChange={(e) => setArtisanNewPassword(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm text-white focus:outline-none"
+                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm text-white focus:outline-none font-sans"
                         />
                       </div>
                       <div>
@@ -1706,7 +1913,7 @@
                           placeholder="e.g. +263783291237"
                           value={artisanNewPhone}
                           onChange={(e) => setArtisanNewPhone(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm text-white focus:outline-none"
+                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm text-white focus:outline-none font-mono"
                         />
                       </div>
                       <div>
@@ -1720,7 +1927,7 @@
                           class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2.5 text-sm text-white focus:outline-none"
                         />
                       </div>
-                      <button type="submit" class="w-full py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold rounded tracking-wide uppercase transition-colors brand-font font-bold text-xs">
+                      <button type="submit" class="w-full py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold rounded tracking-wide uppercase transition-colors brand-font font-bold">
                         Commit Credentials
                       </button>
                     </form>
@@ -1732,11 +1939,11 @@
                     
                     {/* OWNER SCREEN */}
                     {currentRole === "OWNER" && (
-                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 font-mono text-xs">
+                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 font-mono text-xs animate-duration-300">
                         
                         <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl space-y-6">
                           <div>
-                            <h2 class="text-xl font-bold uppercase text-white brand-font border-b border-brand-steelBorder pb-3 font-sans text-sm">
+                            <h2 class="text-xl font-bold uppercase text-white brand-font border-b border-brand-steelBorder pb-3 font-sans text-sm font-bold">
                               Owner Setup Terminal
                             </h2>
                             <p class="text-xs text-brand-steelText mt-2 font-sans leading-relaxed">
@@ -1753,7 +1960,7 @@
                                 placeholder="e.g. Ronald Sibanda"
                                 value={newAdminName}
                                 onChange={(e) => setNewAdminName(e.target.value)}
-                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none"
+                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none font-sans"
                               />
                             </div>
                             <div>
@@ -1768,7 +1975,7 @@
                               />
                             </div>
                             <div>
-                              <label class="block text-xs uppercase mb-1 font-bold font-mono">System Username</label>
+                              <label class="block text-xs uppercase mb-1 font-bold">System Username</label>
                               <input 
                                 type="text" 
                                 required
@@ -1779,7 +1986,7 @@
                               />
                             </div>
                             <div>
-                              <label class="block text-xs uppercase mb-1 font-bold">Access Password</label>
+                              <label class="block text-xs uppercase mb-1 font-bold font-mono">Access Password</label>
                               <input 
                                 type="password" 
                                 required
@@ -1789,7 +1996,7 @@
                                 class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none font-mono"
                               />
                             </div>
-                            <button type="submit" class="w-full py-2 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold rounded text-xs uppercase tracking-wide transition-colors font-sans font-bold">
+                            <button type="submit" class="w-full py-2 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold rounded text-xs uppercase tracking-wide transition-colors font-sans">
                               Initialize Master Admin Account
                             </button>
                           </form>
@@ -1814,7 +2021,7 @@
                                       <th class="py-2.5">Username</th>
                                     </tr>
                                   </thead>
-                                  <tbody class="text-slate-300 divide-y divide-brand-steelBorder">
+                                  <tbody class="text-slate-300 divide-y divide-brand-steelBorder animate-duration-300">
                                     {admins.map((admin, idx) => (
                                       <tr key={idx}>
                                         <td class="py-3 text-white font-bold">{admin.name}</td>
@@ -1834,7 +2041,7 @@
 
                     {/* ADMINISTRATOR SCREEN */}
                     {currentRole === "ADMIN" && (
-                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 font-mono text-xs">
+                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 font-mono text-xs animate-duration-300">
                         
                         {/* Left: Create Artisan/Foreman */}
                         <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl space-y-6">
@@ -1856,7 +2063,7 @@
                                 placeholder="e.g. John the Fitter" 
                                 value={newUsrName}
                                 onChange={(e) => setNewUsrName(e.target.value)}
-                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none"
+                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none font-sans"
                               />
                             </div>
                             <div>
@@ -1883,7 +2090,7 @@
                                 </select>
                               </div>
                               <div>
-                                <label class="block text-brand-steelText uppercase mb-1 font-bold font-sans">Core Trade</label>
+                                <label class="block text-brand-steelText uppercase mb-1 font-bold">Core Trade</label>
                                 <select 
                                   value={newUsrTrade}
                                   onChange={(e) => setNewUsrTrade(e.target.value)}
@@ -1904,7 +2111,7 @@
                                 placeholder="e.g. name@minesync.com" 
                                 value={newUsrEmail}
                                 onChange={(e) => setNewUsrEmail(e.target.value)}
-                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none"
+                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none font-mono"
                               />
                             </div>
                             <div>
@@ -1925,7 +2132,7 @@
                         </div>
 
                         {/* Middle: Active sessions list & Password Override Controller */}
-                        <div class="space-y-6">
+                        <div class="space-y-6 animate-duration-300">
                           <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl">
                             <h3 class="text-md font-bold uppercase text-brand-orange brand-font mb-4 flex items-center justify-between font-sans">
                               <span>🛡️ Active Staff Database Rows</span>
@@ -1943,7 +2150,7 @@
                                 users.map(u => (
                                   <div key={u.id} class="p-3 bg-brand-darkBg border border-brand-steelBorder rounded flex justify-between items-center text-xs font-mono">
                                     <div>
-                                      <div class="flex items-center gap-1.5 font-mono text-xs">
+                                      <div class="flex items-center gap-1.5 font-mono text-xs font-bold">
                                         <span class={`w-2 h-2 rounded-full ${u.online ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></span>
                                         <span class="text-white font-bold">{u.name} ({u.username})</span>
                                       </div>
@@ -1957,7 +2164,7 @@
                                       </span>
                                       <button 
                                         onClick={() => handleResetPassword(u.id)}
-                                        class="px-2 py-0.5 bg-amber-950 border border-amber-800 text-amber-200 text-[10px] rounded hover:bg-amber-900 font-sans"
+                                        class="px-2 py-0.5 bg-amber-950 border border-amber-800 text-amber-200 text-[10px] rounded hover:bg-amber-900 font-sans font-bold"
                                       >
                                         Reset
                                       </button>
@@ -1969,7 +2176,7 @@
                           </div>
 
                           {/* DYNAMIC PASSWORD OVERRIDE CONTROLLER */}
-                          <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl space-y-4">
+                          <div class="bg-brand-cardBg border border-brand-steelBorder/100 p-6 rounded-xl space-y-4 font-mono text-xs">
                             <h3 class="text-sm font-bold text-white uppercase tracking-wider font-mono border-b border-brand-steelBorder pb-2 font-sans text-sm">
                               🔑 Force Password Override
                             </h3>
@@ -1979,7 +2186,7 @@
 
                             <form onSubmit={handleForcePasswordOverride} class="space-y-3 font-mono text-xs">
                               <div>
-                                <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold font-mono">Select Employee</label>
+                                <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Select Employee</label>
                                 <select 
                                   value={adminChangingUserId}
                                   onChange={(e) => setAdminChangingUserId(e.target.value)}
@@ -1998,10 +2205,10 @@
                                   value={adminNewPasswordOverride}
                                   onChange={(e) => setAdminNewPasswordOverride(e.target.value)}
                                   required
-                                  class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-xs text-white focus:outline-none"
+                                  class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-xs text-white focus:outline-none font-mono"
                                 />
                               </div>
-                              <button type="submit" class="w-full py-2 bg-red-950 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-bold uppercase rounded font-bold font-mono font-bold">
+                              <button type="submit" class="w-full py-2 bg-red-955 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-bold uppercase rounded font-bold font-mono">
                                 Override & Rewrite Credentials
                               </button>
                             </form>
@@ -2017,7 +2224,7 @@
                           </div>
 
                           {/* SMTP GMAIL INTEGRATION SETTINGS */}
-                          <form onSubmit={handleSaveSMTPSettings} class="space-y-4 font-mono text-xs border-b border-brand-steelBorder pb-4">
+                          <form onSubmit={handleSaveSMTPSettings} class="space-y-4 font-mono text-xs border-b border-brand-steelBorder pb-4 animate-duration-300">
                             <h4 class="text-xs font-bold text-brand-orange uppercase mb-1">✉️ Outgoing SMTP Mail Server (e.g. Gmail)</h4>
                             <p class="text-[10px] text-brand-steelText">Configure SMTP credentials to dispatch standard recovery codes directly to workers' real Gmail boxes!</p>
                             <div class="grid grid-cols-3 gap-2">
@@ -2032,7 +2239,7 @@
                                 />
                               </div>
                               <div>
-                                <label class="block text-[9px] text-brand-steelText uppercase mb-0.5">SMTP Port</label>
+                                <label class="block text-[9px] text-brand-steelText uppercase mb-0.5 font-sans font-bold">SMTP Port</label>
                                 <input 
                                   type="text" 
                                   placeholder="587"
@@ -2059,11 +2266,11 @@
                                 placeholder="e.g. xxxx xxxx xxxx xxxx"
                                 value={smtpPass}
                                 onChange={(e) => setSmtpPass(e.target.value)}
-                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-1.5 text-white"
+                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-1.5 text-white font-bold"
                               />
                             </div>
                             <div>
-                              <label class="block text-[9px] text-brand-steelText uppercase mb-0.5 font-mono">From Support Address</label>
+                              <label class="block text-[9px] text-brand-steelText uppercase mb-0.5">From Support Address</label>
                               <input 
                                 type="text" 
                                 placeholder="e.g. your-email@gmail.com"
@@ -2079,7 +2286,7 @@
 
                           <form onSubmit={(e) => { e.preventDefault(); alert("Profile committed!"); }} class="space-y-4 font-mono text-xs">
                             <div class="flex justify-between items-center mb-1">
-                              <h4 class="text-xs font-bold text-white uppercase font-sans">🏢 General Corporate Details</h4>
+                              <h4 class="text-xs font-bold text-white uppercase font-sans font-bold">🏢 General Corporate Details</h4>
                               
                               {/* Guided Presets Dropdown */}
                               <select 
@@ -2094,13 +2301,13 @@
                             </div>
 
                             <div>
-                              <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold font-mono">Company Name</label>
+                              <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-bold">Company Name</label>
                               <input 
                                 type="text"
                                 required
                                 value={companyName}
                                 onChange={(e) => setCompanyName(e.target.value)}
-                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white"
+                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white font-sans"
                               />
                             </div>
                             <div>
@@ -2114,7 +2321,7 @@
                               />
                             </div>
                             <div>
-                              <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-mono">Company Contacts</label>
+                              <label class="block text-[10px] text-brand-steelText uppercase mb-1">Company Contacts</label>
                               <input 
                                 type="text"
                                 required
@@ -2124,7 +2331,7 @@
                               />
                             </div>
                             <div>
-                              <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-mono">Logo URL (Or File)</label>
+                              <label class="block text-[10px] text-brand-steelText uppercase mb-1">Logo URL (Or File)</label>
                               <input 
                                 type="text"
                                 required
@@ -2134,7 +2341,7 @@
                               />
                             </div>
                             <div>
-                              <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-mono">How our Plant Works (AI Analyst guidelines)</label>
+                              <label class="block text-[10px] text-brand-steelText uppercase mb-1 font-sans font-bold">How our Plant Works (AI Analyst guidelines)</label>
                               <textarea 
                                 value={plantGuidelines}
                                 onChange={(e) => setPlantGuidelines(e.target.value)}
@@ -2150,22 +2357,22 @@
 
                     {/* PLANT -> MANAGEMENT DASHBOARD */}
                     {currentRole === "PLANT_MANAGEMENT" && (
-                      <div class="space-y-6">
+                      <div class="space-y-6 animate-duration-300">
                         
                         {/* 1. TOP METRICS */}
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                           <div class="bg-brand-cardBg border border-brand-steelBorder p-4 rounded-lg flex justify-between items-center">
                             <div>
-                              <p class="text-xs text-brand-steelText font-mono uppercase">Mean Time to Repair (MTTR)</p>
-                              <h4 class="text-2xl font-bold text-white brand-font mt-1">{getMTTR()}</h4>
+                              <p class="text-xs text-brand-steelText font-mono uppercase font-bold">Mean Time to Repair (MTTR)</p>
+                              <h4 class="text-2xl font-bold text-white brand-font mt-1 font-sans">{getMTTR()}</h4>
                             </div>
-                            <span class="text-3xl font-mono font-bold">⏱️</span>
+                            <span class="text-3xl font-mono">⏱️</span>
                           </div>
 
                           <div class="bg-brand-cardBg border border-brand-steelBorder p-4 rounded-lg flex justify-between items-center">
                             <div>
-                              <p class="text-xs text-brand-steelText font-mono uppercase">Active Outages</p>
-                              <h4 class="text-2xl font-bold text-brand-orange brand-font mt-1 font-mono">
+                              <p class="text-xs text-brand-steelText font-mono uppercase font-bold">Active Outages</p>
+                              <h4 class="text-2xl font-bold text-brand-orange brand-font mt-1 font-sans font-bold">
                                 {workOrders.filter(wo => wo.status !== "Completed").length} Breakdowns
                               </h4>
                             </div>
@@ -2179,7 +2386,7 @@
                                 {getTopFailingAssets().map((asset, index) => (
                                   <div key={index} class="text-xs font-mono font-bold">
                                     <span class="font-bold text-white">{asset.name}</span>:{" "}
-                                    <span class="text-brand-orange font-bold font-mono">{asset.count} Outages</span>
+                                    <span class="text-brand-orange font-bold font-sans">{asset.count} Outages</span>
                                   </div>
                                 ))}
                               </div>
@@ -2196,7 +2403,7 @@
                               <h3 class="text-md font-bold uppercase text-white brand-font border-b border-brand-steelBorder pb-2 font-sans text-sm">
                                 📐 Plant Operation Directives
                               </h3>
-                              <p class="text-xs text-brand-steelText leading-relaxed font-sans">
+                              <p class="text-xs text-brand-steelText leading-relaxed font-sans font-bold">
                                 Write down how your circuits feed into each other, expected trade SLAs, and stores rules. Our <strong>Minesync AI Analyst</strong> compiles diagnostics based on these.
                               </p>
                               <textarea 
@@ -2214,13 +2421,13 @@
                           <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl lg:col-span-2 space-y-4">
                             <h3 class="text-md font-bold text-brand-orange uppercase brand-font border-b border-brand-steelBorder pb-3 flex justify-between items-center font-sans text-sm font-bold">
                               <span>🤖 Minesync AI Analyst Operational Synthesis</span>
-                              <span class="text-[10px] bg-brand-orange/20 border border-brand-orange/40 text-brand-orange px-2 py-0.5 rounded font-mono font-bold">Heuristic Engine Active</span>
+                              <span class="text-[10px] bg-brand-orange/20 border border-brand-orange/40 text-brand-orange px-2 py-0.5 rounded font-bold">Heuristic Engine Active</span>
                             </h3>
 
-                            <div class="p-4 bg-brand-darkBg border border-brand-steelBorder rounded-lg text-slate-300 leading-relaxed whitespace-pre-wrap max-h-80 overflow-y-auto font-mono text-xs">
+                            <div class="p-4 bg-brand-darkBg border border-brand-steelBorder rounded-lg font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap max-h-80 overflow-y-auto">
                               {generateAIReportSummary()}
                             </div>
-                            <div class="text-[11px] text-brand-steelText flex items-center gap-2 font-sans">
+                            <div class="text-[11px] text-brand-steelText flex items-center gap-2 font-sans font-bold">
                               <span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping text-xs"></span>
                               <span>Insight compiled dynamically by parsing live MTTR ratios, trades roster metrics, and company stores stockpile.</span>
                             </div>
@@ -2232,15 +2439,15 @@
                         <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl">
                           <h3 class="text-lg font-bold uppercase text-white brand-font border-b border-brand-steelBorder pb-3 mb-4 flex items-center justify-between font-sans text-sm">
                             <span>👷‍♂️ INDIVIDUAL ARTISAN PERFORMANCE & SLA MATRIX</span>
-                            <span class="text-xs bg-slate-900 border border-brand-steelBorder text-brand-orange px-2 py-0.5 rounded font-mono font-normal">Real-time Performance Graphs</span>
+                            <span class="text-xs bg-slate-900 border border-brand-steelBorder text-brand-orange px-2 py-0.5 rounded font-mono font-normal font-sans">Real-time Performance Graphs</span>
                           </h3>
-                          <p class="text-xs text-brand-steelText mb-4 font-sans">
+                          <p class="text-xs text-brand-steelText mb-4 font-sans leading-normal">
                             Monitors completed work orders, current active backlogs, and expected SLA days compliance per technician. Click on any technician's card to audit emergency details.
                           </p>
 
-                          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 font-mono text-xs">
+                          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 font-mono text-xs animate-duration-300">
                             {users.filter(u => u.role === "Artisan").length === 0 ? (
-                              <div class="col-span-2 p-4 bg-brand-darkBg border border-dashed border-brand-steelBorder rounded text-center text-xs text-brand-steelText font-mono">
+                              <div class="col-span-2 p-4 bg-brand-darkBg border border-dashed border-brand-steelBorder rounded text-center text-xs text-brand-steelText font-mono font-bold">
                                 ⚠️ No active artisans found in registers. Establish rosters via Admin first.
                               </div>
                             ) : (
@@ -2257,9 +2464,9 @@
                                     onClick={() => setInspectingEmployee(artisan)}
                                     class="p-4 bg-brand-darkBg hover:bg-slate-900 border border-brand-steelBorder rounded-lg space-y-3 cursor-pointer transition-colors"
                                   >
-                                    <div class="flex justify-between items-center font-mono text-xs">
+                                    <div class="flex justify-between items-center">
                                       <div>
-                                        <h4 class="text-sm font-bold text-white font-mono flex items-center gap-2 font-sans">
+                                        <h4 class="text-sm font-bold text-white font-mono flex items-center gap-2">
                                           <span>🔍 {artisan.name}</span>
                                           {(!artisan.dob || !artisan.address || !artisan.emergencyName) && (
                                             <span class="text-[8px] bg-amber-950 text-brand-orange px-1 rounded font-normal uppercase font-mono">INCOMPLETE</span>
@@ -2309,20 +2516,20 @@
                                 {getPlantVerdict().text}
                               </p>
                             </div>
-                            <div class="mt-6 pt-4 border-t border-brand-steelBorder/20 text-[11px] text-brand-steelText font-sans">
+                            <div class="mt-6 pt-4 border-t border-brand-steelBorder/20 text-[11px] text-brand-steelText font-sans font-bold">
                               System evaluates technician speeds, shortages complained, and outstanding vs complete ratios.
                             </div>
                           </div>
 
-                          <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl lg:col-span-2 space-y-4 font-mono text-xs">
-                            <h3 class="text-md font-bold text-white uppercase brand-font border-b border-brand-steelBorder pb-3 flex justify-between items-center font-sans text-sm font-bold">
+                          <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl lg:col-span-2 space-y-4">
+                            <h3 class="text-md font-bold text-white uppercase brand-font border-b border-brand-steelBorder pb-3 flex justify-between items-center font-sans text-sm font-bold animate-duration-300">
                               <span>🛠️ Logistics Control & Spares Restocking</span>
                               <span class="text-[10px] bg-emerald-950 border border-emerald-800 text-emerald-200 px-2 py-0.5 rounded font-mono font-bold">
                                 Inventory Edit Mode
                               </span>
                             </h3>
 
-                            <form onSubmit={(e) => { e.preventDefault(); handleRestockParts(refillPartName, refillQuantity); }} class="grid grid-cols-3 gap-4 items-end">
+                            <form onSubmit={(e) => { e.preventDefault(); handleRestockParts(refillPartName, refillQuantity); }} class="grid grid-cols-3 gap-4 items-end animate-duration-300">
                               <div>
                                 <label class="block text-[10px] text-brand-steelText uppercase mb-1">Select Material</label>
                                 <select 
@@ -2345,7 +2552,7 @@
                                   class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-xs text-white"
                                 />
                               </div>
-                              <button type="submit" class="py-2.5 bg-brand-orange hover:bg-brand-orangeHover text-white text-xs font-bold uppercase rounded font-mono font-bold">
+                              <button type="submit" class="py-2.5 bg-brand-orange hover:bg-brand-orangeHover text-white text-xs font-bold uppercase rounded font-mono">
                                 Restock Spares
                               </button>
                             </form>
@@ -2356,7 +2563,7 @@
                                 <p class="text-[11px] text-brand-steelText font-mono">✅ Zero stock-outs registered.</p>
                               ) : (
                                 shortages.map(s => (
-                                  <div key={s.id} class="flex justify-between items-center p-2 bg-slate-900/60 rounded text-xs font-mono border border-brand-steelBorder">
+                                  <div key={s.id} class="flex justify-between items-center p-2 bg-slate-900/60 rounded text-xs font-mono border border-brand-steelBorder animate-duration-300">
                                     <span>&bull; {s.item} ({s.count} reports)</span>
                                     <button 
                                       onClick={() => handleResolveShortage(s.id, s.item)}
@@ -2374,16 +2581,16 @@
                         {/* 5. WORK ORDERS BOARD (Section/Ops Engineers only) */}
                         {(currentUser.role === "Section Engineer" || currentUser.role === "Operations Engineer") ? (
                           <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl space-y-4">
-                            <h3 class="text-lg font-bold uppercase text-white brand-font border-b border-brand-steelBorder pb-3 flex justify-between items-center">
+                            <h3 class="text-lg font-bold uppercase text-white brand-font border-b border-brand-steelBorder pb-3 flex justify-between items-center animate-duration-300">
                               <span>Plant Dispatch logs (Engineer Control & Authorizations)</span>
                               <span class="text-xs bg-brand-orange/10 border border-brand-orange/30 text-brand-orange px-2 py-0.5 rounded font-mono font-normal">Admin Clearance Enabled</span>
                             </h3>
-                            <p class="text-xs text-brand-steelText font-sans">
+                            <p class="text-xs text-brand-steelText">
                               As an engineer, click on any work order row to inject expert safety directives, authorize repair budgets, and print legitimacy certificates.
                             </p>
 
-                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                              <div class="lg:col-span-2 font-mono text-xs">
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 font-mono text-xs">
+                              <div class="lg:col-span-2">
                                 <WorkOrdersTable 
                                   wos={filteredWorkOrders} 
                                   onRowSelect={(id) => setActiveSelectedWOId(id)} 
@@ -2391,8 +2598,8 @@
                                 />
                               </div>
 
-                              <div class="p-4 bg-brand-darkBg border border-brand-steelBorder rounded-xl space-y-4 font-mono text-xs text-left">
-                                <h4 class="text-xs font-mono text-brand-orange uppercase font-bold border-b border-brand-steelBorder pb-2 font-sans">
+                              <div class="p-4 bg-brand-darkBg border border-brand-steelBorder rounded-xl space-y-4 text-left font-mono">
+                                <h4 class="text-xs font-mono text-brand-orange uppercase font-bold border-b border-brand-steelBorder pb-2">
                                   Selected Work Order Actions
                                 </h4>
                                 {activeSelectedWOId ? (
@@ -2400,13 +2607,13 @@
                                     const selectedWO = workOrders.find(w => w.id === activeSelectedWOId);
                                     if (!selectedWO) return <p class="text-xs text-brand-steelText font-mono font-sans">Select a work order row to modify.</p>;
                                     return (
-                                      <div class="space-y-3 text-xs font-mono">
+                                      <div class="space-y-3 text-xs font-mono animate-duration-300">
                                         <div class="p-2 bg-slate-900 rounded border border-brand-steelBorder">
                                           <div class="font-bold text-white text-[11px]">{selectedWO.id}: {selectedWO.title}</div>
                                           <div class="text-[10px] text-brand-steelText mt-1">Status: {selectedWO.status} // Technician: {selectedWO.assignedToName}</div>
                                         </div>
                                         
-                                        <div class="space-y-1.5 font-mono text-xs">
+                                        <div class="space-y-1.5 font-mono text-xs animate-duration-300">
                                           <label class="block text-[10px] text-brand-steelText uppercase font-bold">Engineering Directive</label>
                                           <textarea 
                                             placeholder="Write safety/regulatory directives"
@@ -2423,14 +2630,14 @@
                                           </button>
                                         </div>
 
-                                        <div class="space-y-1.5 pt-2 border-t border-brand-steelBorder/40 font-mono text-xs">
+                                        <div class="space-y-1.5 pt-2 border-t border-brand-steelBorder/40">
                                           <label class="block text-[10px] text-brand-steelText uppercase font-bold">Approve Repair Cost ($)</label>
                                           <input 
                                             type="number"
                                             placeholder="e.g. 500"
                                             value={mgmtBudgetInput}
                                             onChange={(e) => setMgmtBudgetInput(e.target.value)}
-                                            class="w-full bg-slate-950 border border-brand-steelBorder rounded p-1.5 text-white"
+                                            class="w-full bg-slate-955 border border-brand-steelBorder rounded p-1.5 text-white"
                                           />
                                           <button 
                                             onClick={() => handleAddBudgetApprove(selectedWO.id)}
@@ -2440,7 +2647,7 @@
                                           </button>
                                         </div>
 
-                                        <div class="pt-2 border-t border-brand-steelBorder/40">
+                                        <div class="pt-2 border-t border-brand-steelBorder/40 animate-duration-300">
                                           <button 
                                             onClick={() => setActivePrintWO(selectedWO)}
                                             class="w-full py-2 bg-slate-900 border border-brand-orange text-brand-orange hover:bg-brand-orange hover:text-white font-bold text-[10px] uppercase rounded transition-colors font-bold"
@@ -2462,7 +2669,7 @@
                         ) : (
                           // PLANNER EXCLUSION VIEW
                           <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl text-center">
-                            <span class="text-3xl">🛡️</span>
+                            <span class="text-3xl font-sans">🛡️</span>
                             <h3 class="text-md font-bold uppercase text-white brand-font mt-2">Planner Isolation Screen</h3>
                             <p class="text-xs text-brand-steelText mt-1 max-w-md mx-auto">
                               Mining security guidelines restrict active work order details to **Section Engineers** and **Operations Engineers** only. Planners monitor stores, budgets, and overall performance curves.
@@ -2484,10 +2691,10 @@
                             <span class="text-xs text-brand-steelText font-mono font-normal">Autofills Learned Paths</span>
                           </h2>
 
-                          <form onSubmit={handleCreateWorkOrderSubmit} class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <form onSubmit={handleCreateWorkOrderSubmit} class="grid grid-cols-1 md:grid-cols-3 gap-6 animate-duration-300">
                             
-                            <div class="space-y-4 font-mono text-xs">
-                              <div class="relative font-sans text-xs">
+                            <div class="space-y-4">
+                              <div class="relative">
                                 <label class="block text-xs font-mono text-brand-steelText uppercase mb-1">Job Title</label>
                                 <input 
                                   type="text" 
@@ -2495,7 +2702,7 @@
                                   placeholder="e.g. Ball Mill 2 liner replacement..." 
                                   value={jobName}
                                   onChange={(e) => handleJobNameChange(e.target.value)}
-                                  class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none focus:border-brand-orange"
+                                  class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none focus:border-brand-orange font-mono"
                                 />
                                 {activeJobSuggestions.length > 0 && (
                                   <div class="absolute z-40 left-0 right-0 bg-slate-900 border border-brand-steelBorder mt-1 rounded max-h-40 overflow-y-auto shadow-2xl">
@@ -2522,7 +2729,7 @@
                                   class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-sm text-white focus:outline-none font-mono"
                                 />
                                 {activeSerialSuggestions.length > 0 && (
-                                  <div class="absolute z-40 left-0 right-0 bg-slate-955 border border-brand-steelBorder mt-1 rounded max-h-32 overflow-y-auto text-xs font-mono">
+                                  <div class="absolute z-40 left-0 right-0 bg-slate-955 border border-brand-steelBorder mt-1 rounded max-h-32 overflow-y-auto text-xs font-mono animate-pulse animate-duration-300">
                                     {activeSerialSuggestions.map((item, idx) => (
                                       <div 
                                         key={idx} 
@@ -2620,7 +2827,7 @@
                                   />
                                 </div>
                                 <div>
-                                  <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-mono font-bold">Tech Count</label>
+                                  <label class="block text-xs font-mono text-brand-steelText uppercase mb-1 font-mono font-bold font-mono">Tech Count</label>
                                   <input 
                                     type="number" 
                                     min="1"
@@ -2640,8 +2847,8 @@
                         </div>
 
                         {/* 2. INDIVIDUAL ARTISAN PERFORMANCE */}
-                        <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl">
-                          <h3 class="text-md font-bold uppercase text-white brand-font border-b border-brand-steelBorder pb-3 mb-4">
+                        <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl animate-duration-300">
+                          <h3 class="text-md font-bold uppercase text-white brand-font border-b border-brand-steelBorder pb-3 mb-4 font-sans text-sm font-bold">
                             👷‍♂️ Artisan Workload & Emergency Contact Ledger (Click card to audit)
                           </h3>
                           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
@@ -2660,7 +2867,7 @@
                                   <div 
                                     key={artisan.id} 
                                     onClick={() => setInspectingEmployee(artisan)}
-                                    class="p-3 bg-brand-darkBg hover:bg-slate-900 border border-brand-steelBorder rounded-lg text-xs font-mono space-y-2 cursor-pointer transition-colors"
+                                    class="p-3 bg-brand-darkBg hover:bg-slate-900 border border-brand-steelBorder rounded-lg text-xs font-mono space-y-2 cursor-pointer transition-colors animate-duration-300"
                                   >
                                     <div class="flex justify-between font-bold">
                                       <span class="text-white">🔍 {artisan.name} ({artisan.trade})</span>
@@ -2677,13 +2884,13 @@
                         </div>
 
                         {/* 3. DIRECT CHAT MESSAGES PANEL */}
-                        <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl">
+                        <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl animate-duration-300">
                           <h3 class="text-md font-bold uppercase text-brand-orange brand-font mb-4 flex items-center justify-between font-sans text-sm font-bold">
                             <span>💬 Direct Dispatch radio (To/From Artisans)</span>
                             <span class="text-[10px] bg-slate-900 border border-brand-steelBorder text-brand-steelText px-2 py-0.5 rounded font-mono font-bold">Channel 4</span>
                           </h3>
 
-                          <div class="space-y-3 max-h-48 overflow-y-auto p-3 bg-brand-darkBg rounded border border-brand-steelBorder font-mono text-xs text-left">
+                          <div class="space-y-3 max-h-48 overflow-y-auto p-3 bg-brand-darkBg rounded border border-brand-steelBorder font-mono text-xs text-left animate-duration-300">
                             {chats.length === 0 ? (
                               <p class="text-xs text-brand-steelText py-4 text-center">No incoming dispatch messages.</p>
                             ) : (
@@ -2715,7 +2922,7 @@
                         </div>
 
                         {/* 4. REPAIR TABLE */}
-                        <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl space-y-4 font-mono text-xs">
+                        <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl space-y-4 font-mono text-xs animate-duration-300">
                           <h3 class="text-lg font-bold uppercase text-white brand-font border-b border-brand-steelBorder pb-3">
                             Active Outage dispatches
                           </h3>
@@ -2733,17 +2940,17 @@
 
                     {/* PLANT -> ARTISAN PORTAL */}
                     {currentRole === "PLANT_ARTISAN" && (
-                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 font-sans text-xs">
+                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 font-sans text-xs animate-duration-300">
                         
                         {/* Active work orders */}
-                        <div class="lg:col-span-2 space-y-6 animate-duration-300">
+                        <div class="lg:col-span-2 space-y-6">
                           <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl">
                             
                             <div class="flex justify-between items-center border-b border-brand-steelBorder pb-3 mb-4 font-mono">
-                              <h2 class="text-xl font-bold uppercase text-white brand-font text-sm">
+                              <h2 class="text-xl font-bold uppercase text-white brand-font text-sm font-bold font-mono">
                                 My Assigned Work Cards
                               </h2>
-                              <span class="text-xs bg-brand-orange/20 border border-brand-orange/40 text-brand-orange font-bold font-mono px-2.5 py-1 rounded animate-pulse">
+                              <span class="text-xs bg-brand-orange/20 border border-brand-orange/40 text-brand-orange font-bold font-mono px-2.5 py-1 rounded animate-pulse animate-duration-300">
                                 Saved as: {currentUser.trade}
                               </span>
                             </div>
@@ -2769,11 +2976,11 @@
                                     
                                     <div class="flex justify-between items-start gap-4 font-mono text-xs">
                                       <div>
-                                        <span class="text-xs bg-slate-800 border border-brand-steelBorder text-brand-orange px-2 py-0.5 rounded font-bold">
+                                        <span class="text-xs bg-slate-800 border border-brand-steelBorder text-brand-orange px-2 py-0.5 rounded">
                                           {wo.id}
                                         </span>
-                                        <h3 class="text-lg font-bold text-white uppercase brand-font mt-1 font-sans">{wo.title}</h3>
-                                        <p class="text-xs text-brand-steelText mt-0.5">
+                                        <h3 class="text-lg font-bold text-white uppercase brand-font mt-1 font-sans font-bold">{wo.title}</h3>
+                                        <p class="text-xs text-brand-steelText mt-0.5 font-sans">
                                           Asset: {wo.assetName} ({wo.serial}) // SLA: {wo.durationExpected} days
                                         </p>
                                       </div>
@@ -2797,7 +3004,7 @@
                                     </div>
 
                                     {wo.engineeringDirective && (
-                                      <div class="bg-brand-orange/10 border-l-4 border-brand-orange p-3 rounded my-2 text-xs font-mono">
+                                      <div class="bg-brand-orange/10 border-l-4 border-brand-orange p-3 rounded my-2 text-xs font-mono font-bold leading-normal">
                                         ⚠️ <strong>ENGINEERING DIRECTIVE ({wo.authorizedBy}):</strong> {wo.engineeringDirective}
                                       </div>
                                     )}
@@ -2819,7 +3026,7 @@
                                     {wo.status === "Pending" && (
                                       <button 
                                         onClick={() => handleApproveJob(wo.id)}
-                                        class="w-full py-2 bg-brand-orange hover:bg-brand-orangeHover text-white text-xs font-bold rounded tracking-wide uppercase transition-colors font-mono"
+                                        class="w-full py-2 bg-brand-orange hover:bg-brand-orangeHover text-white text-xs font-bold rounded tracking-wide uppercase transition-colors"
                                       >
                                         Acknowledge Assignment (Approve)
                                       </button>
@@ -2829,7 +3036,7 @@
                                       <div class="space-y-4 mt-4 pt-4 border-t border-brand-steelBorder font-mono text-xs">
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                           <div>
-                                            <label class="block text-xs text-brand-steelText uppercase mb-1 font-sans">Adjust progress slider</label>
+                                            <label class="block text-xs text-brand-steelText uppercase mb-1 font-sans font-bold">Adjust progress slider</label>
                                             <input 
                                               type="range" 
                                               min="10" 
@@ -2839,7 +3046,7 @@
                                                 setArtisanProgressVal(e.target.value);
                                                 handleUpdateProgress(wo.id, e.target.value, artisanNotesInput);
                                               }}
-                                              class="w-full accent-brand-orange"
+                                              class="w-full accent-brand-orange animate-duration-300"
                                             />
                                           </div>
                                           <div>
@@ -2856,7 +3063,7 @@
                                         </div>
 
                                         <div class="bg-slate-900/40 p-4 border border-brand-steelBorder rounded flex gap-3 items-end font-mono text-xs">
-                                          <div class="flex-grow font-sans">
+                                          <div class="flex-grow font-sans font-bold">
                                             <label class="block text-xs text-brand-steelText uppercase mb-1 font-bold">Final closure notes</label>
                                             <input 
                                               type="text" 
@@ -2885,7 +3092,7 @@
                                     {wo.status === "Completed" && (
                                       <div class="text-xs text-emerald-400 font-sans mt-2 bg-emerald-950/20 p-2.5 border border-emerald-800 rounded leading-relaxed font-bold">
                                         ✔️ <strong>SLA RESOLVED:</strong> {wo.artisanNotes} <br />
-                                        <span class="text-[10px] text-slate-500 mt-1 block">Closed At: {wo.completedAt}</span>
+                                        <span class="text-[10px] text-slate-500 mt-1 block font-mono">Closed At: {wo.completedAt}</span>
                                       </div>
                                     )}
 
@@ -2901,7 +3108,7 @@
                         <div class="space-y-6 font-mono text-xs">
                           
                           {/* Chat board */}
-                          <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl">
+                          <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl animate-duration-300">
                             <h3 class="text-md font-bold uppercase text-brand-orange brand-font mb-4 flex items-center justify-between font-sans">
                               <span>💬 Direct Radio to Foreman</span>
                               <span class="text-[10px] bg-slate-900 border border-brand-steelBorder text-brand-steelText px-2 py-0.5 rounded font-mono font-bold">Live Link</span>
@@ -2909,11 +3116,11 @@
 
                             <div class="space-y-3 max-h-48 overflow-y-auto p-3 bg-brand-darkBg rounded border border-brand-steelBorder mb-3">
                               {chats.length === 0 ? (
-                                <p class="text-xs text-brand-steelText py-4 text-center">No messages exchanged.</p>
+                                <p class="text-xs text-brand-steelText py-4 text-center font-mono">No messages exchanged.</p>
                               ) : (
                                 chats.map(chat => (
                                   <div key={chat.id} class={`p-2.5 rounded text-xs ${
-                                    chat.sender === "Foreman" ? 'bg-slate-950 text-slate-400 mr-8 border-l-2 border-brand-orange' : 'bg-slate-900 text-slate-300 text-right ml-8 border-r-2 border-brand-steelText'
+                                    chat.sender === "Foreman" ? 'bg-slate-955 text-slate-400 mr-8 border-l-2 border-brand-orange' : 'bg-slate-900 text-slate-300 text-right ml-8 border-r-2 border-brand-steelText'
                                   }`}>
                                     <div class="font-bold text-[10px] text-brand-orange">{chat.sender} &rarr; {chat.receiver}</div>
                                     <p class="mt-1">{chat.text}</p>
@@ -2932,7 +3139,7 @@
                                 onChange={(e) => setPartTypedChatMsg(e.target.value)}
                                 class="flex-grow bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-xs text-white"
                               />
-                              <button type="submit" class="px-3 py-1.5 bg-brand-orange text-white text-xs font-bold uppercase rounded font-mono">
+                              <button type="submit" class="px-3 py-1.5 bg-brand-orange text-white text-xs font-bold uppercase rounded font-mono font-bold">
                                 Dispatch
                               </button>
                             </form>
@@ -2940,21 +3147,21 @@
 
                           {/* Shortage complaint box */}
                           <div class="bg-brand-cardBg border border-brand-steelBorder p-6 rounded-xl">
-                            <h3 class="text-md font-bold uppercase text-white brand-font border-b border-brand-steelBorder pb-3 font-sans">
+                            <h3 class="text-md font-bold uppercase text-white brand-font border-b border-brand-steelBorder pb-3 font-sans font-bold">
                               📢 Material Stock Complaints
                             </h3>
                             <p class="text-xs text-brand-steelText mt-2 mb-4 leading-relaxed font-sans">
                               Log missing spares or low stock here. The system compiles these to Foreman and Management screens.
                             </p>
 
-                            <form onSubmit={handleReportShortage} class="space-y-3 font-mono">
+                            <form onSubmit={handleReportShortage} class="space-y-3">
                               <input 
                                 type="text" 
                                 required
                                 placeholder="E.g. Welding rods, hydraulic gaskets..." 
                                 value={partComplaintInput}
                                 onChange={(e) => setPartComplaintInput(e.target.value)}
-                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-xs text-white focus:outline-none"
+                                class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-xs text-white focus:outline-none font-mono"
                               />
                               <button type="submit" class="w-full py-2 bg-red-950 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-bold rounded tracking-wide uppercase transition-colors">
                                 Dispatch Stock Warning
@@ -2975,157 +3182,7 @@
 
           </main>
 
-          {/* --- E. EDIT USER PROFILE SETTINGS MODAL --- */}
-          {showProfileModal && currentUser && (
-            <div class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto no-print">
-              <div class="max-w-md w-full bg-brand-cardBg border-2 border-brand-orange rounded-xl p-8 shadow-2xl relative text-left space-y-4 font-mono text-xs">
-                
-                <button 
-                  onClick={() => setShowProfileModal(false)}
-                  class="absolute top-4 right-4 text-slate-500 hover:text-white font-extrabold text-sm"
-                >
-                  ✕
-                </button>
-
-                <div class="text-center pb-2 border-b border-brand-steelBorder">
-                  <span class="text-3xl">👤</span>
-                  <h3 class="text-md font-bold uppercase text-brand-orange brand-font mt-1 font-mono">Profile Configurations</h3>
-                  <p class="text-[10px] text-brand-steelText mt-0.5 font-mono">UPDATE CORRESPONDENCE & EMERGENCY DETAILS</p>
-                </div>
-
-                <form onSubmit={handleSaveUserProfile} class="space-y-4 font-mono">
-                  
-                  <div class="space-y-1">
-                    <label class="block text-[9px] text-brand-steelText uppercase font-bold font-sans">Profile Picture URL</label>
-                    <input 
-                      type="text"
-                      placeholder="e.g. https://images.com/photo.jpg"
-                      value={profileImg}
-                      onChange={(e) => setProfileImg(e.target.value)}
-                      class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white"
-                    />
-                  </div>
-
-                  <div class="grid grid-cols-2 gap-3">
-                    <div class="space-y-1">
-                      <label class="block text-[9px] text-brand-steelText uppercase font-bold font-sans">Date of Birth (DOB)</label>
-                      <input 
-                        type="date"
-                        required
-                        value={profileDob}
-                        onChange={(e) => setProfileDob(e.target.value)}
-                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white font-sans"
-                      />
-                    </div>
-                    <div class="space-y-1 font-mono text-xs">
-                      <label class="block text-[9px] text-brand-steelText uppercase font-bold">Contact Number</label>
-                      <input 
-                        type="text"
-                        required
-                        placeholder="e.g. +263783291237"
-                        value={profilePhone}
-                        onChange={(e) => setProfilePhone(e.target.value)}
-                        class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div class="space-y-1">
-                    <label class="block text-[9px] text-brand-steelText uppercase font-bold">Home Address</label>
-                    <input 
-                      type="text"
-                      required
-                      placeholder="e.g. 42 Meru Quarters, Bulawayo"
-                      value={profileAddress}
-                      onChange={(e) => setProfileAddress(e.target.value)}
-                      class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white"
-                    />
-                  </div>
-
-                  <div class="border-t border-brand-steelBorder/40 pt-3 space-y-3 font-mono text-xs">
-                    <h4 class="text-[10px] font-bold text-brand-orange uppercase">🚨 On-Site Emergency Contacts</h4>
-                    <div class="grid grid-cols-2 gap-3">
-                      <div class="space-y-1">
-                        <label class="block text-[9px] text-brand-steelText uppercase font-bold font-mono">Next of Kin Name</label>
-                        <input 
-                          type="text"
-                          required
-                          placeholder="e.g. Sarah Nyoni"
-                          value={profileEmergencyName}
-                          onChange={(e) => setProfileEmergencyName(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white font-mono"
-                        />
-                      </div>
-                      <div class="space-y-1">
-                        <label class="block text-[9px] text-brand-steelText uppercase font-bold font-mono">Emergency Phone</label>
-                        <input 
-                          type="text"
-                          required
-                          placeholder="e.g. +263771122334"
-                          value={profileEmergencyPhone}
-                          onChange={(e) => setProfileEmergencyPhone(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white font-mono"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <button type="submit" class="w-full py-2.5 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded font-mono font-bold text-xs">
-                    Save Profile & Clear Flag
-                  </button>
-                </form>
-
-              </div>
-            </div>
-          )}
-
-          {/* --- F. EMPLOYEE PROFILE INSPECTOR MODAL --- */}
-          {inspectingEmployee && (
-            <div class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto no-print">
-              <div class="max-w-md w-full bg-brand-cardBg border-2 border-brand-orange rounded-xl p-8 shadow-2xl relative text-left space-y-4 font-mono text-xs">
-                
-                <button 
-                  onClick={() => setInspectingEmployee(null)}
-                  class="absolute top-4 right-4 text-slate-500 hover:text-white font-extrabold text-sm"
-                >
-                  ✕ Close
-                </button>
-
-                <div class="text-center pb-2 border-b border-brand-steelBorder">
-                  <div class="w-16 h-16 rounded-full border-2 border-brand-orange bg-slate-800 flex items-center justify-center overflow-hidden mx-auto mb-2">
-                    {inspectingEmployee.profileImg ? (
-                      <img src={inspectingEmployee.profileImg} alt="Avatar" class="w-full h-full object-cover" />
-                    ) : (
-                      <span class="text-lg font-bold text-slate-500">{inspectingEmployee.name.slice(0, 2).toUpperCase()}</span>
-                    )}
-                  </div>
-                  <h3 class="text-md font-bold uppercase text-white brand-font">{inspectingEmployee.name}</h3>
-                  <p class="text-[10px] text-brand-orange uppercase">Roster Trade: {inspectingEmployee.trade} // Role: {inspectingEmployee.role}</p>
-                </div>
-
-                <div class="space-y-2 bg-slate-950 p-4 rounded-lg border border-brand-steelBorder leading-relaxed">
-                  <h4 class="text-xs font-bold text-white uppercase border-b border-brand-steelBorder pb-1 mb-2 font-sans font-bold">🏢 Shift Contact Profile:</h4>
-                  <p><strong>Roster Email:</strong> {inspectingEmployee.email}</p>
-                  <p><strong>WhatsApp Line:</strong> {inspectingEmployee.whatsapp || "Not configured"}</p>
-                  <p><strong>Date of Birth (DOB):</strong> {inspectingEmployee.dob || "Not configured"}</p>
-                  <p><strong>Home Address:</strong> {inspectingEmployee.address || "Not configured"}</p>
-                </div>
-
-                <div class="space-y-2 bg-red-950/20 p-4 rounded-lg border border-red-900 leading-relaxed">
-                  <h4 class="text-xs font-bold text-red-400 uppercase border-b border-red-900 pb-1 mb-2 font-sans font-bold">🚨 EMERGENCY CONTACT INFO:</h4>
-                  <p><strong>Next of Kin Name:</strong> <span class="text-white font-bold">{inspectingEmployee.emergencyName || "Not configured"}</span></p>
-                  <p><strong>Emergency Contact Phone:</strong> <span class="text-brand-orange font-bold font-mono">{inspectingEmployee.emergencyPhone || "Not configured"}</span></p>
-                </div>
-
-                <div class="text-center font-sans">
-                  <p class="text-[9px] text-slate-500 leading-normal">Keep this emergency card secure. Dispatched in compliance with Mining Health & Safety Act.</p>
-                </div>
-
-              </div>
-            </div>
-          )}
-
-          {/* --- PRINTABLE CERTIFICATE MODAL --- */}
+          {/* --- C. PRINTABLE CERTIFICATE MODAL --- */}
           {activePrintWO && (
             <div class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 overflow-y-auto no-print">
               <div class="max-w-2xl w-full bg-white text-black p-8 rounded shadow-2xl relative space-y-6">
@@ -3143,7 +3200,7 @@
                   <div class="border-b-2 border-black pb-4 flex justify-between items-start font-sans">
                     <div>
                       <h1 class="text-xl font-bold tracking-tight uppercase">{companyName}</h1>
-                      <p class="text-xs tracking-wider font-mono">OUTAGE CLEARANCE COMPLIANCE CERTIFICATE</p>
+                      <p class="text-xs tracking-wider font-mono font-sans">OUTAGE CLEARANCE COMPLIANCE CERTIFICATE</p>
                       <p class="text-[10px] text-slate-600 font-mono mt-0.5">SYSTEM GENERATED CERTIFICATE ID: {activePrintWO.id}</p>
                     </div>
                     
@@ -3184,23 +3241,23 @@
                         </tr>
                         <tr class="border-b border-slate-200">
                           <td class="py-1.5 font-bold">Expected Shift Duration:</td>
-                          <td class="py-1.5">{activePrintWO.durationExpected} days</td>
+                          <td class="py-1.5 font-sans">{activePrintWO.durationExpected} days</td>
                         </tr>
                         <tr class="border-b border-slate-200">
-                          <td class="py-1.5 font-bold">Approved Budget Cost:</td>
-                          <td class="py-1.5">${activePrintWO.repairCost || "Standard clearance"}</td>
+                          <td class="py-1.5 font-bold font-sans">Approved Budget Cost:</td>
+                          <td class="py-1.5 font-sans">${activePrintWO.repairCost || "Standard clearance"}</td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
 
                   {/* Section 2: Written description guidelines */}
-                  <div class="space-y-2 font-serif">
+                  <div class="space-y-2 font-serif text-xs">
                     <h3 class="text-sm font-bold uppercase border-b border-black pb-1 font-sans">2. SPECIFIC REPAIR INSTRUCTIONS:</h3>
                     <p class="text-xs italic bg-slate-100 p-2 rounded font-sans">
                       &ldquo; {activePrintWO.title} &rdquo;
                     </p>
-                    <p class="text-xs leading-relaxed text-slate-700">
+                    <p class="text-xs leading-relaxed text-slate-700 font-sans">
                       <strong>Method Statement:</strong> {activePrintWO.description}
                     </p>
                     {activePrintWO.engineeringDirective && (
@@ -3213,13 +3270,13 @@
                   {/* Section 3: Artisan logs */}
                   <div class="space-y-2 font-serif">
                     <h3 class="text-sm font-bold uppercase border-b border-black pb-1 font-sans">3. EXECUTING ROSTER LOGS:</h3>
-                    <p class="text-xs">
+                    <p class="text-xs font-sans">
                       <strong>Executing Artisan:</strong> {activePrintWO.assignedToName} (Roster Trade: {activePrintWO.assignedToName.includes("Bongani") ? "Boiler Maker" : "Fitter"})
                     </p>
-                    <p class="text-xs">
+                    <p class="text-xs font-sans">
                       <strong>Completion Timestamp:</strong> {activePrintWO.completedAt || "PENDING WORK CLEARANCE"}
                     </p>
-                    <p class="text-xs leading-relaxed">
+                    <p class="text-xs leading-relaxed font-sans">
                       <strong>Artisan Verification Statement:</strong> {activePrintWO.artisanNotes || "Await mechanical completion notes."}
                     </p>
                   </div>
@@ -3235,10 +3292,10 @@
                     </div>
 
                     <div class="space-y-6">
-                      <p class="border-b border-black text-center italic text-[11px] h-8 flex items-end justify-center text-slate-700 font-sans">
+                      <p class="border-b border-black text-center italic text-[11px] h-8 flex items-end justify-center text-slate-700">
                         Verified by Foreman Tau
                       </p>
-                      <p class="text-center uppercase font-bold text-[9px] text-slate-800 font-sans">Shift Foreman<br />(Verification & Date)</p>
+                      <p class="text-center uppercase font-bold text-[9px] text-slate-800 font-sans font-bold">Shift Foreman<br />(Verification & Date)</p>
                     </div>
 
                     <div class="space-y-6">
@@ -3262,7 +3319,7 @@
                 <div class="flex gap-4 pt-4 border-t border-slate-200 font-mono text-xs no-print font-sans">
                   <button 
                     onClick={() => window.print()}
-                    class="flex-1 py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded shadow-md"
+                    class="flex-1 py-3 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded shadow-md font-bold"
                   >
                     🖨️ Trigger System Print
                   </button>
@@ -3270,7 +3327,7 @@
                     onClick={() => {
                       window.print();
                     }}
-                    class="flex-1 py-3 bg-black hover:bg-slate-900 text-white font-bold uppercase rounded shadow-md"
+                    class="flex-1 py-3 bg-black hover:bg-slate-900 text-white font-bold uppercase rounded shadow-md font-bold"
                   >
                     💾 Save as Legit PDF Copy
                   </button>
@@ -3287,24 +3344,24 @@
                 
                 <button 
                   onClick={() => setShowOpsBypassModal(false)}
-                  class="absolute top-4 right-4 text-slate-500 hover:text-white font-extrabold text-sm font-sans"
+                  class="absolute top-4 right-4 text-slate-500 hover:text-white font-extrabold text-sm"
                 >
                   ✕
                 </button>
 
-                <div class="text-center pb-2 border-b border-brand-steelBorder">
+                <div class="text-center pb-2 border-b border-brand-steelBorder font-sans">
                   <span class="text-3xl">📐</span>
-                  <h3 class="text-md font-bold uppercase text-brand-orange brand-font mt-1 font-mono text-xs">Ops Engineer Bypass</h3>
+                  <h3 class="text-md font-bold uppercase text-brand-orange brand-font mt-1 font-mono text-xs font-bold font-mono">Ops Engineer Bypass</h3>
                   <p class="text-[10px] text-brand-steelText mt-0.5 font-mono">ADMIN RECOVERY & CREDENTIALS RESET</p>
                 </div>
 
                 <form onSubmit={handleOpsAdminBypass} class="space-y-4">
-                  <div class="bg-brand-orange/10 border border-brand-orange/30 p-2.5 rounded text-[11px] text-brand-orange leading-relaxed font-sans">
+                  <div class="bg-brand-orange/10 border border-brand-orange/30 p-2.5 rounded text-[11px] text-brand-orange leading-relaxed font-sans font-bold">
                     ⚙️ <strong>Engineer Authority:</strong> Input your registered Operations Engineer username and password. If matched, you will be authorized to define new credentials for the primary Admin account.
                   </div>
                   
                   <div class="space-y-2">
-                    <label class="block text-[10px] text-brand-steelText uppercase">Ops Engineer Position ID</label>
+                    <label class="block text-[10px] text-brand-steelText uppercase font-bold">Ops Engineer Position ID</label>
                     <input 
                       type="text"
                       required
@@ -3316,21 +3373,21 @@
                   </div>
 
                   <div class="space-y-2">
-                    <label class="block text-[10px] text-brand-steelText uppercase font-bold">Ops Engineer Password</label>
+                    <label class="block text-[10px] text-brand-steelText uppercase font-bold font-mono">Ops Engineer Password</label>
                     <input 
                       type="password"
                       required
                       placeholder="Enter Ops password"
                       value={opsPasswordInput}
                       onChange={(e) => setOpsPasswordInput(e.target.value)}
-                      class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white focus:outline-none focus:border-brand-orange"
+                      class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-2 text-white focus:outline-none focus:border-brand-orange font-mono"
                     />
                   </div>
 
-                  <div class="border-t border-brand-steelBorder/40 pt-3 space-y-2">
-                    <h4 class="text-[10px] font-bold text-white uppercase mb-1">Define New Admin Credentials:</h4>
+                  <div class="border-t border-brand-steelBorder/40 pt-3 space-y-2 animate-duration-300">
+                    <h4 class="text-[10px] font-bold text-white uppercase mb-1 font-sans font-bold">Define New Admin Credentials:</h4>
                     
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-2 font-mono text-xs">
                       <div>
                         <label class="block text-[9px] text-brand-steelText uppercase">New Admin Username</label>
                         <input 
@@ -3339,11 +3396,11 @@
                           placeholder="sys_admin"
                           value={newBypassAdminUser}
                           onChange={(e) => setNewBypassAdminUser(e.target.value)}
-                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-1.5 text-white"
+                          class="w-full bg-brand-darkBg border border-brand-steelBorder rounded p-1.5 text-white font-mono"
                         />
                       </div>
                       <div>
-                        <label class="block text-[9px] text-brand-steelText uppercase">New Admin Password</label>
+                        <label class="block text-[9px] text-brand-steelText uppercase font-bold">New Admin Password</label>
                         <input 
                           type="password"
                           required
@@ -3356,14 +3413,14 @@
                     </div>
                   </div>
 
-                  <div class="flex gap-3 font-sans">
-                    <button type="submit" class="flex-grow py-2.5 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded font-mono font-bold">
+                  <div class="flex gap-3 font-sans text-xs">
+                    <button type="submit" class="flex-grow py-2.5 bg-brand-orange hover:bg-brand-orangeHover text-white font-bold uppercase rounded font-mono font-bold font-sans">
                       Authorize Bypass & Reset
                     </button>
                     <button 
                       type="button" 
                       onClick={() => setShowOpsBypassModal(false)}
-                      class="px-4 py-2 bg-slate-900 border border-brand-steelBorder text-slate-300 rounded font-sans"
+                      class="px-4 py-2 bg-slate-900 border border-brand-steelBorder text-slate-300 rounded font-sans font-bold"
                     >
                       Cancel
                     </button>
@@ -3394,7 +3451,7 @@
       if (wos.length === 0) {
         return (
           <div class="p-8 text-center bg-brand-darkBg border border-dashed border-brand-steelBorder rounded-lg">
-            <span class="text-3xl">🧹</span>
+            <span class="text-3xl font-sans">🧹</span>
             <p class="text-sm text-brand-steelText font-mono mt-2">No breakdowns reported. Plant is healthy.</p>
           </div>
         );
@@ -3425,25 +3482,25 @@
                 >
                   <td class="py-3 text-brand-orange font-bold pl-2">{wo.id}</td>
                   <td class="py-3">
-                    <span class="font-bold text-white block font-sans">{wo.title}</span>
-                    <span class="text-[10px] text-slate-400 block font-mono">{wo.description.slice(0, 50)}...</span>
+                    <span class="font-bold text-white block">{wo.title}</span>
+                    <span class="text-[10px] text-slate-400 block font-mono font-normal">{wo.description.slice(0, 50)}...</span>
                   </td>
-                  <td class="py-3">{wo.assetName}</td>
-                  <td class="py-3 text-brand-steelText">{wo.assignedToName}</td>
-                  <td class="py-3 text-center">{wo.durationExpected}d</td>
+                  <td class="py-3 font-sans">{wo.assetName}</td>
+                  <td class="py-3 text-brand-steelText font-sans">{wo.assignedToName}</td>
+                  <td class="py-3 text-center font-sans font-bold">{wo.durationExpected}d</td>
                   <td class="py-3">
                     <span class={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       wo.status === "Pending" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
                       wo.status === "In-Progress" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                      wo.status === "Awaiting Spares" ? "bg-red-500/10 text-red-500 border border-red-500/20" :
+                      wo.status === "Awaiting Spares" ? "bg-red-500/10 text-red-500 border border-red-500/20 font-bold" :
                       "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                     }`}>
                       {wo.status}
                     </span>
                   </td>
-                  <td class="py-3 pr-2">
+                  <td class="py-3 pr-2 font-sans">
                     <div class="flex items-center gap-2">
-                      <div class="w-16 bg-slate-900 h-2 rounded overflow-hidden font-sans">
+                      <div class="w-16 bg-slate-900 h-2 rounded overflow-hidden">
                         <div class="bg-brand-orange h-full" style={{ width: `${wo.progress}%` }}></div>
                       </div>
                       <span>{wo.progress}%</span>
@@ -3461,6 +3518,6 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f"}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a271b90e699e4fa7',t:'MTc4NjA1NzkwOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a271ef299d0f97ee',t:'MTc4NjA2MDEyNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f"}' crossorigin="anonymous"></script>
+</body>
 </html>
